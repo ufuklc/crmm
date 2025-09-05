@@ -23,7 +23,7 @@ type PropertyRow = {
   heating?: string | null;
 };
 
-async function fetchProperties(searchParams?: Record<string, string | undefined>): Promise<{ properties: PropertyRow[]; total: number; page: number; pageSize: number }> {
+async function fetchProperties(searchParams?: Record<string, string | string[] | undefined>): Promise<{ properties: PropertyRow[]; total: number; page: number; pageSize: number }> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
@@ -31,7 +31,17 @@ async function fetchProperties(searchParams?: Record<string, string | undefined>
   const qs = new URLSearchParams();
   const ua = h.get("user-agent") ?? "";
   const isMobile = /Mobi|Android|iPhone/i.test(ua);
-  if (searchParams) Object.entries(searchParams).forEach(([k, v]) => v && qs.set(k, v));
+  if (searchParams) {
+    Object.entries(searchParams).forEach(([k, v]) => {
+      if (v) {
+        if (Array.isArray(v)) {
+          v.forEach(item => qs.append(k, item));
+        } else {
+          qs.set(k, v);
+        }
+      }
+    });
+  }
   if (!qs.has("pageSize") && isMobile) qs.set("pageSize", "10");
   const url = qs.toString() ? `${baseUrl}/api/properties?${qs}` : `${baseUrl}/api/properties`;
   const res = await fetch(url, { cache: "no-store" });

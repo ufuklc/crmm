@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle, useMemo } from "react";
 import { SearchableSelect } from "../forms/controls/SearchableSelect";
 import { MultiCheckDropdown } from "../forms/controls/MultiCheckDropdown";
 import { PriceInput } from "../forms/controls/PriceInput";
@@ -18,7 +18,7 @@ export const PropertyFiltersBar = forwardRef<
   {
     initialSearchParams?: Record<string, string | string[] | undefined>;
   }
->(({ initialSearchParams }, ref) => {
+>(({ }, ref) => {
   // Tüm state'leri boş başlat
   const [selectedRoomPlans, setSelectedRoomPlans] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<{ id: string; name: string } | null>(null);
@@ -212,6 +212,7 @@ export const PropertyFiltersBar = forwardRef<
       <div className="space-y-2">
         <div className="text-sm font-medium text-gray-700">Oda Planı</div>
         <MultiCheckDropdown
+          label=""
           placeholder="Oda Planı"
           options={roomPlanOptions}
           selected={selectedRoomPlans}
@@ -222,6 +223,7 @@ export const PropertyFiltersBar = forwardRef<
       <div className="space-y-2">
         <div className="text-sm font-medium text-gray-700">Isıtma</div>
         <MultiCheckDropdown
+          label=""
           placeholder="Isıtma"
           options={heatingOptions}
           selected={selectedHeating}
@@ -232,6 +234,7 @@ export const PropertyFiltersBar = forwardRef<
       <div className="space-y-2">
         <div className="text-sm font-medium text-gray-700">Portföy Sahibi</div>
         <MultiCheckDropdown
+          label=""
           placeholder="Portföy Sahibi"
           options={portfolioOwnerOptions}
           selected={selectedPortfolioOwners}
@@ -243,12 +246,14 @@ export const PropertyFiltersBar = forwardRef<
         <div className="text-sm font-medium text-gray-700">Fiyat</div>
         <div className="grid grid-cols-2 gap-2">
           <PriceInput
-            placeholder="Min Fiyat"
+            name="min_price"
+            label="Min Fiyat"
             value={minPrice}
             onChange={setMinPrice}
           />
           <PriceInput
-            placeholder="Max Fiyat"
+            name="max_price"
+            label="Max Fiyat"
             value={maxPrice}
             onChange={setMaxPrice}
           />
@@ -259,12 +264,14 @@ export const PropertyFiltersBar = forwardRef<
         <div className="text-sm font-medium text-gray-700">Brüt m²</div>
         <div className="grid grid-cols-2 gap-2">
           <PriceInput
-            placeholder="Min Brüt m²"
+            name="min_gross_m2"
+            label="Min Brüt m²"
             value={minGrossM2}
             onChange={setMinGrossM2}
           />
           <PriceInput
-            placeholder="Max Brüt m²"
+            name="max_gross_m2"
+            label="Max Brüt m²"
             value={maxGrossM2}
             onChange={setMaxGrossM2}
           />
@@ -275,12 +282,14 @@ export const PropertyFiltersBar = forwardRef<
         <div className="text-sm font-medium text-gray-700">Kat Sayısı</div>
         <div className="grid grid-cols-2 gap-2">
           <PriceInput
-            placeholder="Min Kat"
+            name="min_building_floors"
+            label="Min Kat"
             value={minBuildingFloors}
             onChange={setMinBuildingFloors}
           />
           <PriceInput
-            placeholder="Max Kat"
+            name="max_building_floors"
+            label="Max Kat"
             value={maxBuildingFloors}
             onChange={setMaxBuildingFloors}
           />

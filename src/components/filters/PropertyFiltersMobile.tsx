@@ -9,12 +9,6 @@ export function PropertyFiltersMobile({ initialSearchParams }: { initialSearchPa
   const [open, setOpen] = useState(false);
   const filterBarRef = useRef<{ handleFilter: () => void }>(null);
 
-  const handleFilter = () => {
-    // PropertyFiltersBar'daki handleFilter fonksiyonunu çağır
-    if (filterBarRef.current?.handleFilter) {
-      filterBarRef.current.handleFilter();
-    }
-  };
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>

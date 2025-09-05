@@ -10,8 +10,6 @@ export function MultiCheckDropdown({
   onChange,
   placeholder,
   single = false,
-  defaultValue,
-  value,
 }: {
   label: string;
   options: string[];
@@ -19,8 +17,6 @@ export function MultiCheckDropdown({
   onChange: (next: string[]) => void;
   placeholder?: string;
   single?: boolean; // true ise tek seçim yapılır (checkbox görünümünde)
-  defaultValue?: string[];
-  value?: string[];
 }): React.ReactElement {
   const [open, setOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
