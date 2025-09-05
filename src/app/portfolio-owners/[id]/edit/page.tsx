@@ -12,8 +12,9 @@ async function fetchOwner(id: string): Promise<{ id: string; first_name: string;
   return j.portfolioOwner;
 }
 
-export default async function EditPortfolioOwnerPage({ params }: { params: { id: string } }): Promise<React.ReactElement> {
-  const o = await fetchOwner(params.id);
+export default async function EditPortfolioOwnerPage({ params }: { params: Promise<{ id: string }> }): Promise<React.ReactElement> {
+  const { id } = await params;
+  const o = await fetchOwner(id);
   if (!o) return <div className="max-w-4xl mx-auto p-6">Kayıt bulunamadı.</div>;
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-4">
