@@ -2,7 +2,6 @@
 
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { readCities, readDistricts, readNeighborhoods, upsertCities, upsertDistricts, upsertNeighborhoods } from "@/lib/cache/locationsCache";
 
 type Item = { id: string; name: string };
 
@@ -39,26 +38,12 @@ export function SearchableSelect({
 
   useEffect(() => {
     if (!open && !autoFetch) return;
-    // Try cache first for known endpoints
-    if (fetchUrl.includes("/api/locations/cities")) {
-      const cached = readCities();
-      if (cached.length) setItems(cached as Array<{ id: string; name: string }>);
-    } else if (fetchUrl.includes("/api/locations/districts")) {
-      const cached = readDistricts((query as { cityId?: string })?.cityId);
-      if (cached.length) setItems(cached as Array<{ id: string; name: string }>);
-    } else if (fetchUrl.includes("/api/locations/neighborhoods")) {
-      const cached = readNeighborhoods((query as { districtId?: string })?.districtId);
-      if (cached.length) setItems(cached as Array<{ id: string; name: string }>);
-    }
+    
     fetch(url)
       .then((r) => r.json())
       .then((j) => {
         const arr = (j.items as Item[]) ?? [];
         setItems(arr);
-        // Update cache
-        if (fetchUrl.includes("/api/locations/cities")) upsertCities(arr as Array<{ id: string; name: string }>);
-        else if (fetchUrl.includes("/api/locations/districts")) upsertDistricts((query as { cityId?: string })?.cityId ?? "", arr as Array<{ id: string; name: string }>);
-        else if (fetchUrl.includes("/api/locations/neighborhoods")) upsertNeighborhoods((query as { districtId?: string })?.districtId ?? "", arr as Array<{ id: string; name: string }>);
       })
       .catch(() => setItems([]));
   }, [url, open, autoFetch, fetchUrl, query]);
