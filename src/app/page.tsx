@@ -12,7 +12,7 @@ export default async function Home(): Promise<React.ReactElement> {
   const todayNotes = (json.todayNotes as Array<{ id: string; customer: { id: string; first_name: string; last_name: string } | null; created_at: string }>) ?? [];
   const todayTotal = Number(json.todayNotesTotal ?? 0);
   const todayProps = (json.todayProps as Array<{ id: string; type: string; created_at: string; portfolio_owner: { id: string; first_name: string; last_name: string } | null }>) ?? [];
-  const todayPropsTotal = Number(json.todayPropsTotal ?? 0);
+  // const todayPropsTotal = Number(json.todayPropsTotal ?? 0);
   const activityPage = Number(json.activityPage ?? 1);
   const activityPageSize = Number(json.activityPageSize ?? 10);
   const notifications = (json.notifications as Array<{ id: string; customer: { id: string; first_name: string; last_name: string } | null; requestCreatedAt: string }>) ?? [];

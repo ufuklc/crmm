@@ -3,11 +3,11 @@
 import Link from "next/link";
 import type React from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+// import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth";
 import { Menu, X } from "lucide-react";
-import { NotificationsBell } from "./NotificationsBell";
+// import { NotificationsBell } from "./NotificationsBell";
 
 function MobileNav(): React.ReactElement {
   return (

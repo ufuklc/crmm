@@ -24,7 +24,7 @@ async function fetchCustomers(searchParams?: Record<string, string | undefined>)
   const url = qs.toString() ? `${baseUrl}/api/customers?${qs}` : `${baseUrl}/api/customers`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return { customers: [], total: 0, page: 1, pageSize: 25 };
-  let json: any = {};
+  let json: { customers?: CustomerRow[]; total?: number; page?: number; pageSize?: number } = {};
   try { json = await res.json(); } catch { json = {}; }
   return { customers: (json.customers as CustomerRow[]) ?? [], total: Number(json.total ?? 0), page: Number(json.page ?? 1), pageSize: Number(json.pageSize ?? 25) };
 }
@@ -120,7 +120,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           {total > pageSize && (
             <div className="mt-3 flex items-center justify-center gap-2">
               {Array.from({ length: Math.ceil(total / pageSize) }, (_, i) => i + 1).map((p) => {
-                const params = new URLSearchParams({ ...(sp as any), page: String(p) });
+                const params = new URLSearchParams({ ...(sp as Record<string, string>), page: String(p) });
                 params.set("pageSize", String(pageSize));
                 const qs = params.toString();
                 return (

@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-type Params = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
-export async function GET(_req: Request, { params }: Params): Promise<Response> {
-  const { id } = params;
+export async function GET(_req: Request, ctx: RouteParams): Promise<Response> {
+  const { id } = await ctx.params;
   const { data, error } = await supabaseAdmin
     .from("portfolio_owners")
     .select("*")
@@ -14,9 +14,9 @@ export async function GET(_req: Request, { params }: Params): Promise<Response> 
   return NextResponse.json({ portfolioOwner: data });
 }
 
-export async function PATCH(req: Request, { params }: Params): Promise<Response> {
+export async function PATCH(req: Request, ctx: RouteParams): Promise<Response> {
   const body = await req.json();
-  const { id } = params;
+  const { id } = await ctx.params;
   const { data, error } = await supabaseAdmin
     .from("portfolio_owners")
     .update(body)
@@ -27,16 +27,16 @@ export async function PATCH(req: Request, { params }: Params): Promise<Response>
   return NextResponse.json({ id: data.id });
 }
 
-export async function DELETE(_req: Request, { params }: Params): Promise<Response> {
-  const { id } = params;
+export async function DELETE(_req: Request, ctx: RouteParams): Promise<Response> {
+  const { id } = await ctx.params;
   const { error } = await supabaseAdmin.from("portfolio_owners").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
 
 // Method override: HTML form POST + _method=put/delete
-export async function POST(req: Request, { params }: Params): Promise<Response> {
-  const { id } = params;
+export async function POST(req: Request, ctx: RouteParams): Promise<Response> {
+  const { id } = await ctx.params;
   const contentType = req.headers.get("content-type") ?? "";
   if (contentType.includes("application/json")) {
     return NextResponse.json({ error: "Use PATCH or DELETE" }, { status: 405 });

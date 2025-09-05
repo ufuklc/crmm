@@ -19,8 +19,8 @@ export async function GET(_req: Request, ctx: RouteParams): Promise<Response> {
       .split(",")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-  const districtList = parseList((req as any).district ?? null);
-  const neighborhoodList = parseList((req as any).neighborhood ?? null);
+  const districtList = parseList((req as { district?: string }).district ?? null);
+  const neighborhoodList = parseList((req as { neighborhood?: string }).neighborhood ?? null);
   let query = supabaseAdmin
     .from("properties")
     .select(

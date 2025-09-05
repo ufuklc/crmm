@@ -1,8 +1,9 @@
 import type React from "react";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { ProfessionSelect } from "@/components/forms/controls/ProfessionSelect";
 
-async function fetchCustomer(id: string): Promise<any | null> {
+async function fetchCustomer(id: string): Promise<{ id: string; first_name: string; last_name: string; phone?: string; profession_id?: string } | null> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
@@ -24,9 +25,10 @@ async function fetchProfessions(): Promise<Array<{ id: string; name: string }>> 
   return (j.professions as Array<{ id: string; name: string }>) ?? [];
 }
 
-export default async function EditCustomerPage({ params }: { params: { id: string } }): Promise<React.ReactElement> {
-  const [c, professions] = await Promise.all([
-    fetchCustomer(params.id),
+export default async function EditCustomerPage({ params }: { params: Promise<{ id: string }> }): Promise<React.ReactElement> {
+  const { id } = await params;
+  const [c] = await Promise.all([
+    fetchCustomer(id),
     fetchProfessions(),
   ]);
   if (!c) return <div className="max-w-5xl mx-auto p-6">Kayıt bulunamadı.</div>;
@@ -51,7 +53,7 @@ export default async function EditCustomerPage({ params }: { params: { id: strin
           <ProfessionSelect initialId={c.profession_id ?? ""} />
         </div>
         <div className="flex justify-end gap-2">
-          <a href="/customers" className="btn btn-primary">İptal</a>
+          <Link href="/customers" className="btn btn-primary">İptal</Link>
           <button type="submit" className="btn btn-primary">Kaydet</button>
         </div>
       </form>

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-type Params = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: Request, { params }: Params): Promise<Response> {
+export async function PATCH(req: Request, ctx: RouteParams): Promise<Response> {
   const body = await req.json();
-  const { id } = params;
+  const { id } = await ctx.params;
   const { data, error } = await supabaseAdmin
     .from("meeting_notes")
     .update(body)
@@ -16,8 +16,8 @@ export async function PATCH(req: Request, { params }: Params): Promise<Response>
   return NextResponse.json({ id: data.id });
 }
 
-export async function DELETE(_req: Request, { params }: Params): Promise<Response> {
-  const { id } = params;
+export async function DELETE(_req: Request, ctx: RouteParams): Promise<Response> {
+  const { id } = await ctx.params;
   const { error } = await supabaseAdmin.from("meeting_notes").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });

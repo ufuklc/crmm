@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState } from "react";
+import Link from "next/link";
 import { SearchableSelect } from "@/components/forms/controls/SearchableSelect";
 
 export function RequestFiltersBar({ initialCustomerId }: { initialCustomerId?: string }): React.ReactElement {
@@ -23,7 +24,7 @@ export function RequestFiltersBar({ initialCustomerId }: { initialCustomerId?: s
         <SearchableSelect label="Müşteri" fetchUrl="/api/lookup/customers" onChange={(v) => setCustomerId(v?.id ?? "")} />
       </div>
       <button className="btn btn-primary" type="submit">Filtrele</button>
-      <a className="btn btn-primary" href="/requests">Temizle</a>
+      <Link className="btn btn-primary" href="/requests">Temizle</Link>
     </form>
   );
 }

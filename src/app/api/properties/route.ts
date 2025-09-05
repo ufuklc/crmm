@@ -36,7 +36,7 @@ export async function GET(req: Request): Promise<Response> {
   const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize") ?? "25")));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  let query = supabaseAdmin.from("properties");
+  let query = supabaseAdmin.from("properties").select("id, type, listing_type, city, district, neighborhood, price, gross_m2, net_m2, room_plan");
   if (type) query = query.eq("type", type);
   if (listing) query = query.eq("listing_type", listing);
   if (city) query = query.eq("city", city);
@@ -47,7 +47,7 @@ export async function GET(req: Request): Promise<Response> {
     const ownersRes = await supabaseAdmin.from("portfolio_owners").select("id, first_name, last_name");
     if (!ownersRes.error) {
       const fullToId = new Map<string, string>();
-      (ownersRes.data ?? []).forEach((o: any) => {
+      (ownersRes.data ?? []).forEach((o: { id: string; first_name: string; last_name: string }) => {
         const full = `${o.first_name ?? ""} ${o.last_name ?? ""}`.trim();
         if (full) fullToId.set(full, o.id as string);
       });
@@ -97,7 +97,6 @@ export async function GET(req: Request): Promise<Response> {
   setBool("balcony", balcony);
   setBool("in_site", inSite);
   const { data, error, count } = await query
-    .select("id, type, listing_type, city, district, neighborhood, price, gross_m2, net_m2, room_plan", { count: "exact" })
     .order("created_at", { ascending: false })
     .range(from, to);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -50,9 +50,9 @@ export default async function CustomerDetailPage({ params }: PageParams): Promis
   const baseUrl = `${proto}://${host}`;
   const reqIds = (requests ?? []).map((r) => r.id as string);
   const resCounts = await fetch(`${baseUrl}/api/requests/match-counts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: reqIds }) });
-  let jCounts: any = {};
+  let jCounts: { counts?: Record<string, number> } = {};
   try { jCounts = await resCounts.json(); } catch { jCounts = {}; }
-  const countById = (jCounts.counts as Record<string, number>) ?? {};
+  const countById = jCounts.counts ?? {};
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-4">
@@ -119,7 +119,7 @@ export default async function CustomerDetailPage({ params }: PageParams): Promis
 
       {/* Notlar */}
       <section>
-        <CustomerNotesForm customerId={customerId} initialNotes={(notes ?? []) as any} />
+        <CustomerNotesForm customerId={customerId} initialNotes={(notes ?? []).map(n => ({ id: n.id, content: n.content, created_at: n.created_at }))} />
       </section>
 
       {/* Mülkler */}

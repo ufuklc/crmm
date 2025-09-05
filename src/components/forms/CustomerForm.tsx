@@ -3,7 +3,7 @@
 import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+// import { useEffect } from "react";
 import { ProfessionSelect } from "@/components/forms/controls/ProfessionSelect";
 
 export function CustomerForm(): React.ReactElement {
@@ -14,7 +14,7 @@ export function CustomerForm(): React.ReactElement {
   const [cashOrLoan, setCashOrLoan] = useState<"Nakit" | "Kredi">("Nakit");
   const [preferredListing, setPreferredListing] = useState<"Satılık" | "Kiralık" | "">("");
   const [professionId, setProfessionId] = useState<string>("");
-  const [professions, setProfessions] = useState<Array<{ id: string; name: string }>>([]);
+  // const [professions, setProfessions] = useState<Array<{ id: string; name: string }>>([]);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +43,12 @@ export function CustomerForm(): React.ReactElement {
     router.push("/customers");
   }
 
-  useEffect(() => {
-    fetch("/api/professions")
-      .then((r) => r.json())
-      .then((j) => setProfessions((j.professions as Array<{ id: string; name: string }>) ?? []))
-      .catch(() => setProfessions([]));
-  }, []);
+  // useEffect(() => {
+  //   fetch("/api/professions")
+  //     .then((r) => r.json())
+  //     .then((j) => setProfessions((j.professions as Array<{ id: string; name: string }>) ?? []))
+  //     .catch(() => setProfessions([]));
+  // }, []);
 
   return (
     <form onSubmit={onSubmit} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm space-y-4">
@@ -59,7 +59,7 @@ export function CustomerForm(): React.ReactElement {
         </div>
         <div>
           <label className="block text-sm text-gray-700">Tercih (Satılık/Kiralık)</label>
-          <select value={preferredListing} onChange={(e) => setPreferredListing(e.target.value as any)} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
+          <select value={preferredListing} onChange={(e) => setPreferredListing(e.target.value as "Satılık" | "Kiralık" | "")} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
             <option value="">Seçiniz</option>
             <option value="Satılık">Satılık</option>
             <option value="Kiralık">Kiralık</option>

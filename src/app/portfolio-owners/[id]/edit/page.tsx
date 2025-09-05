@@ -1,7 +1,7 @@
 import type React from "react";
 import { headers } from "next/headers";
 
-async function fetchOwner(id: string): Promise<any | null> {
+async function fetchOwner(id: string): Promise<{ id: string; first_name: string; last_name: string } | null> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");

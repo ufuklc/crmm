@@ -1,9 +1,10 @@
 import type React from "react";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { PriceInput } from "@/components/forms/controls/PriceInput";
 import { OwnersSelectors } from "@/components/forms/OwnersSelectors";
 
-async function fetchProperty(id: string): Promise<any | null> {
+async function fetchProperty(id: string): Promise<{ id: string; type: string; listing_type: string; city: string; district: string; neighborhood: string; price: number; gross_m2: number; net_m2: number; room_plan: string; heating: string; floor: number; building_floors: number; building_age: number; ensuite_bath: boolean; pool: boolean; dressing_room: boolean; furnished: boolean; bathroom_count: number; balcony: boolean; in_site: boolean; aspect: string[]; credit: boolean; customer_id: string; portfolio_owner_id: string } | null> {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
@@ -159,7 +160,7 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
           </div>
         </div>
         <div className="flex justify-end gap-2">
-          <a href="/properties" className="btn btn-primary">İptal</a>
+          <Link href="/properties" className="btn btn-primary">İptal</Link>
           <button type="submit" className="btn btn-primary">Kaydet</button>
         </div>
       </form>

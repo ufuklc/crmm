@@ -3,8 +3,9 @@
 import type React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SearchableSelect } from "@/components/forms/controls/SearchableSelect";
-import { MultiCheckDropdown } from "@/components/forms/controls/MultiCheckDropdown";
+// import { MultiCheckDropdown } from "@/components/forms/controls/MultiCheckDropdown";
 import { PriceInput } from "@/components/forms/controls/PriceInput";
 
 const ROOM_PLANS: string[] = [
@@ -257,7 +258,7 @@ export function PropertyForm(): React.ReactElement {
       </div>
       {error && <div className="text-sm text-red-600">{error}</div>}
       <div className="flex justify-end gap-2">
-        <a href="/properties" className="btn btn-primary">İptal</a>
+                  <Link href="/properties" className="btn btn-primary">İptal</Link>
         <button type="submit" disabled={submitting} className="btn btn-primary disabled:opacity-60">
           {submitting ? "Kaydediliyor..." : "Kaydet"}
         </button>

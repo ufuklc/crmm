@@ -34,7 +34,7 @@ async function fetchProperties(searchParams?: Record<string, string | undefined>
   const url = qs.toString() ? `${baseUrl}/api/properties?${qs}` : `${baseUrl}/api/properties`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return { properties: [], total: 0, page: 1, pageSize: 25 };
-  let json: any = {};
+  let json: { properties?: PropertyRow[]; total?: number; page?: number; pageSize?: number } = {};
   try { json = await res.json(); } catch { json = {}; }
   return { properties: (json.properties as PropertyRow[]) ?? [], total: Number(json.total ?? 0), page: Number(json.page ?? 1), pageSize: Number(json.pageSize ?? 25) };
 }
@@ -53,9 +53,9 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
       <div className="md:grid md:grid-cols-12 md:gap-4">
         <aside className="md:col-span-3 mb-4 md:mb-0">
           <div className="hidden md:block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700">
-            <PropertyFiltersBar initialSearchParams={sp as any} />
+            <PropertyFiltersBar initialSearchParams={sp as Record<string, string | undefined>} />
           </div>
-          <PropertyFiltersMobile initialSearchParams={sp as any} />
+          <PropertyFiltersMobile initialSearchParams={sp as Record<string, string | undefined>} />
         </aside>
         <section className="md:col-span-9">
           <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700">

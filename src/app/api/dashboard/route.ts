@@ -39,14 +39,20 @@ export async function GET(req: Request): Promise<Response> {
   if (propCount.error || activeCustomers.error || activeRequests.error || todayNotes.error || todayProps.error) {
     return NextResponse.json({ error: "KPI hesaplanamadı" }, { status: 500 });
   }
-  const todayNotesData = ((todayNotes.data as any[]) ?? []).map((n) => ({
-    ...n,
-    customer: n.customer ?? (Array.isArray(n.customers) ? n.customers[0] : null) ?? null,
-  }));
-  const todayPropsData = ((todayProps.data as any[]) ?? []).map((p) => ({
-    ...p,
-    portfolio_owner: p.portfolio_owner ?? (Array.isArray(p.portfolio_owners) ? p.portfolio_owners[0] : null) ?? null,
-  }));
+  const todayNotesData = ((todayNotes.data as unknown[]) ?? []).map((n: unknown) => {
+    const note = n as { customer?: { id: string; first_name: string; last_name: string } | null; customers?: Array<{ id: string; first_name: string; last_name: string }>; [key: string]: unknown };
+    return {
+      ...note,
+      customer: note.customer ?? (Array.isArray(note.customers) ? note.customers[0] : null) ?? null,
+    };
+  });
+  const todayPropsData = ((todayProps.data as unknown[]) ?? []).map((p: unknown) => {
+    const prop = p as { portfolio_owner?: { id: string; first_name: string; last_name: string } | null; portfolio_owners?: Array<{ id: string; first_name: string; last_name: string }>; [key: string]: unknown };
+    return {
+      ...prop,
+      portfolio_owner: prop.portfolio_owner ?? (Array.isArray(prop.portfolio_owners) ? prop.portfolio_owners[0] : null) ?? null,
+    };
+  });
 
   // Bildirimler: Son 7 günde istek girilmiş ve hiç görüşme notu eklenmemiş müşteriler
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -58,12 +64,15 @@ export async function GET(req: Request): Promise<Response> {
   if (recentReq.error) {
     return NextResponse.json({ error: "Bildirimler getirilemedi" }, { status: 500 });
   }
-  const reqs = ((recentReq.data as any[]) ?? []).map((r) => ({
-    id: r.id as string,
-    customer_id: r.customer_id as string,
-    created_at: r.created_at as string,
-    customer: r.customer ?? (Array.isArray(r.customers) ? r.customers[0] : null) ?? null,
-  })) as Array<{ id: string; customer_id: string; created_at: string; customer: { id: string; first_name: string; last_name: string } | null }>;
+  const reqs = ((recentReq.data as unknown[]) ?? []).map((r: unknown) => {
+    const req = r as { id: string; customer_id: string; created_at: string; customer?: { id: string; first_name: string; last_name: string } | null; customers?: Array<{ id: string; first_name: string; last_name: string }> };
+    return {
+      id: req.id as string,
+      customer_id: req.customer_id as string,
+      created_at: req.created_at as string,
+      customer: req.customer ?? (Array.isArray(req.customers) ? req.customers[0] : null) ?? null,
+    };
+  }) as Array<{ id: string; customer_id: string; created_at: string; customer: { id: string; first_name: string; last_name: string } | null }>;
   const customerIds = Array.from(new Set(reqs.map((r) => r.customer_id)));
   // İstekten SONRA görüşme notu eklenmişse bildirim gösterme
   let notesByCustomer = new Map<string, Array<string>>();
@@ -78,7 +87,7 @@ export async function GET(req: Request): Promise<Response> {
       return NextResponse.json({ error: "Bildirimler getirilemedi" }, { status: 500 });
     }
     notesByCustomer = new Map<string, Array<string>>();
-    (notes.data ?? []).forEach((n: any) => {
+    (notes.data ?? []).forEach((n: { customer_id: string; created_at: string }) => {
       const key = String(n.customer_id);
       const arr = notesByCustomer.get(key) ?? [];
       arr.push(String(n.created_at));

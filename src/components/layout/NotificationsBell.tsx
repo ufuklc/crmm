@@ -3,7 +3,7 @@
 import { Bell } from "lucide-react";
 import { useEffect, useState } from "react";
 
-export function NotificationsBell(): JSX.Element {
+export function NotificationsBell(): React.ReactElement {
   const [count, setCount] = useState<number>(0);
 
   useEffect(() => {

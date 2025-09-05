@@ -42,13 +42,13 @@ async function insert(table: string, rows: Record<string, unknown>[]): Promise<I
 }
 
 async function main(): Promise<void> {
-  faker.locale = "tr";
+  // faker.locale = "tr"; // locale deprecated in newer faker versions
 
   // 5 müşteri
   const customers = Array.from({ length: 5 }).map(() => ({
     first_name: faker.person.firstName(),
     last_name: faker.person.lastName(),
-    phone: faker.phone.number("5#########"),
+    phone: faker.phone.number(),
     cash_or_loan: faker.helpers.arrayElement(["Nakit", "Kredi"]),
     created_by: createdBy,
   }));
@@ -139,7 +139,7 @@ async function main(): Promise<void> {
   const portfolioOwners = Array.from({ length: 5 }).map(() => ({
     first_name: faker.person.firstName(),
     last_name: faker.person.lastName(),
-    phone: faker.phone.number("5#########"),
+    phone: faker.phone.number(),
     created_by: createdBy,
   }));
   const portfolioRes = await insert("portfolio_owners", portfolioOwners);

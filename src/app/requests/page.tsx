@@ -34,7 +34,7 @@ async function fetchRequests(searchParams?: Record<string, string | undefined>):
   const url = qs.toString() ? `${baseUrl}/api/requests?${qs}` : `${baseUrl}/api/requests`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return { requests: [], total: 0, page: 1, pageSize: 25 };
-  let json: any = {};
+  let json: { requests?: RequestRow[]; total?: number; page?: number; pageSize?: number } = {};
   try { json = await res.json(); } catch { json = {}; }
   return { requests: (json.requests as RequestRow[]) ?? [], total: Number(json.total ?? 0), page: Number(json.page ?? 1), pageSize: Number(json.pageSize ?? 25) };
 }
@@ -48,9 +48,9 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
   const baseUrl2 = `${proto2}://${host2}`;
   const ids = requests.map((r) => r.id);
   const resCounts = await fetch(`${baseUrl2}/api/requests/match-counts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
-  let jCounts: any = {};
+  let jCounts: { counts?: Record<string, number> } = {};
   try { jCounts = await resCounts.json(); } catch { jCounts = {}; }
-  const countById = (jCounts.counts as Record<string, number>) ?? {};
+  const countById = jCounts.counts ?? {};
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-4">
       <div className="flex items-center justify-between">

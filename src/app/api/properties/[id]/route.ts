@@ -12,8 +12,8 @@ export async function GET(_req: Request, ctx: RouteParams): Promise<Response> {
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
   // Enrich with owner names
-  let customer: any = null;
-  let portfolioOwner: any = null;
+  let customer: { id: string; first_name: string; last_name: string } | null = null;
+  let portfolioOwner: { id: string; first_name: string; last_name: string } | null = null;
   try {
     if (data?.customer_id) {
       const c = await supabaseAdmin

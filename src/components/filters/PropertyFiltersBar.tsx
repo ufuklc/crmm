@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { PriceInput } from "@/components/forms/controls/PriceInput";
 import { MultiCheckDropdown } from "@/components/forms/controls/MultiCheckDropdown";
 import { SearchableSelect } from "@/components/forms/controls/SearchableSelect";
@@ -201,7 +202,7 @@ export function PropertyFiltersBar({
 
       <div className="flex items-end gap-2">
         <button className="btn btn-primary w-full" type="submit">Filtrele</button>
-        <a href="/properties" className="btn btn-primary w-full text-center">Temizle</a>
+        <Link href="/properties" className="btn btn-primary w-full text-center">Temizle</Link>
       </div>
     </form>
   );

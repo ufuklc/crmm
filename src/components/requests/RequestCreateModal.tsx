@@ -2,7 +2,7 @@
 
 import * as Dialog from "@radix-ui/react-dialog";
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { SearchableSelect } from "@/components/forms/controls/SearchableSelect";
 import { PriceInput } from "@/components/forms/controls/PriceInput";
 

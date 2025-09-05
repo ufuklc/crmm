@@ -42,13 +42,13 @@ export function SearchableSelect({
     // Try cache first for known endpoints
     if (fetchUrl.includes("/api/locations/cities")) {
       const cached = readCities();
-      if (cached.length) setItems(cached as any);
+      if (cached.length) setItems(cached as Array<{ id: string; name: string }>);
     } else if (fetchUrl.includes("/api/locations/districts")) {
-      const cached = readDistricts((query as any)?.cityId);
-      if (cached.length) setItems(cached as any);
+      const cached = readDistricts((query as { cityId?: string })?.cityId);
+      if (cached.length) setItems(cached as Array<{ id: string; name: string }>);
     } else if (fetchUrl.includes("/api/locations/neighborhoods")) {
-      const cached = readNeighborhoods((query as any)?.districtId);
-      if (cached.length) setItems(cached as any);
+      const cached = readNeighborhoods((query as { districtId?: string })?.districtId);
+      if (cached.length) setItems(cached as Array<{ id: string; name: string }>);
     }
     fetch(url)
       .then((r) => r.json())
@@ -56,9 +56,9 @@ export function SearchableSelect({
         const arr = (j.items as Item[]) ?? [];
         setItems(arr);
         // Update cache
-        if (fetchUrl.includes("/api/locations/cities")) upsertCities(arr as any);
-        else if (fetchUrl.includes("/api/locations/districts")) upsertDistricts((query as any)?.cityId, arr as any);
-        else if (fetchUrl.includes("/api/locations/neighborhoods")) upsertNeighborhoods((query as any)?.districtId, arr as any);
+        if (fetchUrl.includes("/api/locations/cities")) upsertCities(arr as Array<{ id: string; name: string }>);
+        else if (fetchUrl.includes("/api/locations/districts")) upsertDistricts((query as { cityId?: string })?.cityId ?? "", arr as Array<{ id: string; name: string }>);
+        else if (fetchUrl.includes("/api/locations/neighborhoods")) upsertNeighborhoods((query as { districtId?: string })?.districtId ?? "", arr as Array<{ id: string; name: string }>);
       })
       .catch(() => setItems([]));
   }, [url, open, autoFetch, fetchUrl, query]);

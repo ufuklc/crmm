@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { ensureCache, upsertCities, upsertDistricts } from "@/lib/cache/locationsCache";
 import { Header } from "./Header";
 
-export function ShowHeader(): JSX.Element | null {
+export function ShowHeader(): React.ReactElement | null {
   const pathname = usePathname();
   const hideOn = ["/sign-in", "/sign-up"];
   useEffect(() => {
