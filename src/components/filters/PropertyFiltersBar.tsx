@@ -36,13 +36,22 @@ export function PropertyFiltersBar({
   // İlçe seçildiğinde mahalle listesini çek
   useEffect(() => {
     async function load(): Promise<void> {
-      if (!selectedDistrict?.id) { setNeighborhoodOptions([]); setSelectedNeighborhoods([]); return; }
+      if (!selectedDistrict?.id) { 
+        console.log('No district selected, clearing neighborhoods');
+        setNeighborhoodOptions([]); 
+        setSelectedNeighborhoods([]); 
+        return; 
+      }
+      console.log('Loading neighborhoods for district:', selectedDistrict.id);
       try {
         const r = await fetch(`/api/locations/neighborhoods?districtId=${encodeURIComponent(selectedDistrict.id)}`);
         const j = await r.json();
+        console.log('Neighborhoods API response:', j);
         const items = (j.items as { id: string; name: string }[]) ?? [];
+        console.log('Neighborhoods items:', items);
         setNeighborhoodOptions(items);
-      } catch {
+      } catch (error) {
+        console.error('Error loading neighborhoods:', error);
         setNeighborhoodOptions([]);
       }
     }
@@ -109,6 +118,12 @@ export function PropertyFiltersBar({
         onChange={setSelectedNeighborhoods} 
         placeholder="Mahalle seç" 
       />
+      {/* Debug info */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="text-xs text-gray-500">
+          Debug: {neighborhoodOptions.length} mahalle yüklendi
+        </div>
+      )}
       {selectedNeighborhoods.map((n, i) => {
         const neighborhood = neighborhoodOptions.find(opt => opt.name === n);
         return (
