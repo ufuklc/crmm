@@ -12,16 +12,31 @@ export function ConfirmButton({
   className?: string;
 }): React.ReactElement {
   const [open, setOpen] = useState(false);
+  const [formRef, setFormRef] = useState<HTMLFormElement | null>(null);
 
   function submitClosestForm(): void {
-    const active = document.activeElement as HTMLElement | null;
-    const form = active?.closest("form") as HTMLFormElement | null;
-    if (form) form.submit();
+    if (formRef) {
+      formRef.submit();
+    } else {
+      // Fallback: try to find the form
+      const active = document.activeElement as HTMLElement | null;
+      const form = active?.closest("form") as HTMLFormElement | null;
+      if (form) form.submit();
+    }
   }
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={className}>
+      <button 
+        type="button" 
+        onClick={() => {
+          // Form referansını yakala
+          const form = (document.activeElement as HTMLElement)?.closest("form") as HTMLFormElement | null;
+          setFormRef(form);
+          setOpen(true);
+        }} 
+        className={className}
+      >
         {children}
       </button>
       {open && (
