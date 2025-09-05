@@ -19,7 +19,21 @@ export async function GET(req: Request): Promise<Response> {
     .order("created_at", { ascending: false })
     .range(from, to);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ customers: data, total: count ?? 0, page, pageSize });
+  
+  const response = { 
+    customers: data, 
+    total: count ?? 0, 
+    page, 
+    pageSize,
+    _metadata: {
+      timestamp: new Date().toISOString(),
+      endpoint: 'customers',
+      method: req.method,
+      url: req.url
+    }
+  };
+  
+  return NextResponse.json(response);
 }
 
 export async function POST(req: Request): Promise<Response> {

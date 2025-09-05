@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { apiRequest } from "@/lib/apiClient";
 
 type Item = { id: string; name: string };
 
@@ -13,6 +14,7 @@ export function SearchableSelect({
   disabled,
   placeholder,
   autoFetch,
+  value,
 }: {
   label: string;
   fetchUrl: string;
@@ -21,11 +23,12 @@ export function SearchableSelect({
   disabled?: boolean;
   placeholder?: string;
   autoFetch?: boolean;
+  value?: { id: string; name: string } | null;
 }): React.ReactElement {
   const [open, setOpen] = useState<boolean>(false);
   const [items, setItems] = useState<Item[]>([]);
   const [search, setSearch] = useState<string>("");
-  const [selected, setSelected] = useState<Item | null>(null);
+  const [selected, setSelected] = useState<Item | null>(value || null);
 
   const url = useMemo(() => {
     const u = new URL(fetchUrl, typeof window !== "undefined" ? window.location.origin : "http://localhost");
@@ -39,14 +42,18 @@ export function SearchableSelect({
   useEffect(() => {
     if (!open && !autoFetch) return;
     
-    fetch(url)
-      .then((r) => r.json())
-      .then((j) => {
+    apiRequest(url)
+      .then(({ data: j }) => {
         const arr = (j.items as Item[]) ?? [];
         setItems(arr);
       })
       .catch(() => setItems([]));
   }, [url, open, autoFetch, fetchUrl, query]);
+
+  // Value prop'u değiştiğinde selected state'ini güncelle
+  useEffect(() => {
+    setSelected(value || null);
+  }, [value]);
 
   function selectItem(item: Item): void {
     setSelected(item);

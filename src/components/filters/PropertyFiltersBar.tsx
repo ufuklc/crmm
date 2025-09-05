@@ -1,235 +1,325 @@
 "use client";
 
-import type React from "react";
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { PriceInput } from "@/components/forms/controls/PriceInput";
-import { MultiCheckDropdown } from "@/components/forms/controls/MultiCheckDropdown";
-import { SearchableSelect } from "@/components/forms/controls/SearchableSelect";
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useMemo } from "react";
+import { SearchableSelect } from "../forms/controls/SearchableSelect";
+import { MultiCheckDropdown } from "../forms/controls/MultiCheckDropdown";
+import { PriceInput } from "../forms/controls/PriceInput";
 
-const ROOM_PLANS = [
-  "Stüdyo(1+0)","1+1","1.5+1","2+0","2+1","2.5+1","2+2","3+0","3+1","3.5+1","3+2","3+3",
-  "4+0","4+1","4.5+1","4.5+2","4+2","4+3","4+4","5+1","5.5 + 1","5+2","5+3","5+4",
-  "6+1","6+2","6.5 + 1","6+3","6+4","7+1","7+2","7+3","8+1","8+2","8+3","8+4",
-  "9+1","9+3","9+4","9+5","9+6","10+1","10+2","10 Üzeri"
+const roomPlanOptions = [
+  "1+0", "1+1", "2+1", "3+1", "4+1", "5+1", "6+1", "7+1", "8+1", "9+1", "10+1"
 ];
 
-export function PropertyFiltersBar({
-  initialSearchParams,
-}: {
-  initialSearchParams?: Record<string, string | string[] | undefined>;
-}): React.ReactElement {
+const heatingOptions = [
+  "Doğalgaz", "Kombi", "Merkezi", "Soba", "Elektrik", "Klima", "Yok"
+];
+
+export const PropertyFiltersBar = forwardRef<
+  { handleFilter: () => void },
+  {
+    initialSearchParams?: Record<string, string | string[] | undefined>;
+  }
+>(({ initialSearchParams }, ref) => {
+  // Tüm state'leri boş başlat
   const [selectedRoomPlans, setSelectedRoomPlans] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<{ id: string; name: string } | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<{ id: string; name: string } | null>(null);
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
   const [neighborhoodOptions, setNeighborhoodOptions] = useState<{ id: string; name: string }[]>([]);
-  const [selectedHeating, setSelectedHeating] = useState<string[]>([]); 
+  const [selectedHeating, setSelectedHeating] = useState<string[]>([]);
   const [selectedPortfolioOwners, setSelectedPortfolioOwners] = useState<string[]>([]);
   const [portfolioOwnerOptions, setPortfolioOwnerOptions] = useState<string[]>([]);
+  
+  // Fiyat filtreleri
+  const [minPrice, setMinPrice] = useState<string>("");
+  const [maxPrice, setMaxPrice] = useState<string>("");
+  const [minGrossM2, setMinGrossM2] = useState<string>("");
+  const [maxGrossM2, setMaxGrossM2] = useState<string>("");
+  const [minBuildingFloors, setMinBuildingFloors] = useState<string>("");
+  const [maxBuildingFloors, setMaxBuildingFloors] = useState<string>("");
 
-  const current = useMemo(() => {
-    const sp: Record<string, string | string[] | undefined> = initialSearchParams ?? {};
-    return sp;
-  }, [initialSearchParams]);
+  // State'leri boş başlat
+  const [current, setCurrent] = useState({
+    type: '',
+    listing_type: '',
+    in_site: ''
+  });
 
-  // İlçe seçildiğinde mahalle listesini çek
+  // Portfolio owner'ları yükle
   useEffect(() => {
-    async function load(): Promise<void> {
-      if (!selectedDistrict?.id) { 
-        console.log('No district selected, clearing neighborhoods');
-        setNeighborhoodOptions([]); 
-        setSelectedNeighborhoods([]); 
-        return; 
-      }
-      console.log('Loading neighborhoods for district:', selectedDistrict.id);
+    const fetchPortfolioOwners = async () => {
       try {
-        const r = await fetch(`/api/locations/neighborhoods?districtId=${encodeURIComponent(selectedDistrict.id)}`);
-        const j = await r.json();
-        console.log('Neighborhoods API response:', j);
-        const items = (j.items as { id: string; name: string }[]) ?? [];
-        console.log('Neighborhoods items:', items);
-        setNeighborhoodOptions(items);
+        const response = await fetch('/api/portfolio-owners');
+        if (response.ok) {
+          const data = await response.json();
+          setPortfolioOwnerOptions(data.portfolioOwners || []);
+        }
       } catch (error) {
-        console.error('Error loading neighborhoods:', error);
-        setNeighborhoodOptions([]);
+        console.error('Portfolio owner yükleme hatası:', error);
       }
-    }
-    void load();
-  }, [selectedDistrict?.id]);
-
-  // Portföy sahiplerini yükle (ilk açılışta)
-  useEffect(() => {
-    async function loadOwners(): Promise<void> {
-      try {
-        const r = await fetch(`/api/lookup/portfolio-owners`);
-        const j = await r.json();
-        const items = (j.items as { id: string; name: string }[]) ?? [];
-        setPortfolioOwnerOptions(items.map((x) => x.name));
-      } catch {
-        setPortfolioOwnerOptions([]);
-      }
-    }
-    void loadOwners();
+    };
+    fetchPortfolioOwners();
   }, []);
 
+  // Mahalle seçeneklerini yükle
+  useEffect(() => {
+    const fetchNeighborhoods = async () => {
+      if (selectedDistrict?.id) {
+        try {
+          const response = await fetch(`/api/locations/neighborhoods?districtId=${selectedDistrict.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            setNeighborhoodOptions(data.items || []);
+          }
+        } catch (error) {
+          console.error('Mahalle yükleme hatası:', error);
+        }
+      } else {
+        setNeighborhoodOptions([]);
+        setSelectedNeighborhoods([]);
+      }
+    };
+    fetchNeighborhoods();
+  }, [selectedDistrict?.id]);
+
+  // İlçe query'sini memoize et
+  const districtQuery = useMemo(() => ({ cityId: selectedCity?.id }), [selectedCity?.id]);
+
+  // Ref için handleFilter fonksiyonunu expose et
+  useImperativeHandle(ref, () => ({
+    handleFilter
+  }));
+
+  const handleFilter = () => {
+    // URL'yi güncelle ve sayfayı yenile
+    const params = new URLSearchParams();
+    
+    // Temel filtreler
+    if (current.type) params.set('type', current.type);
+    if (current.listing_type) params.set('listing_type', current.listing_type);
+    if (current.in_site) params.set('in_site', current.in_site);
+    
+    // Oda planı
+    if (selectedRoomPlans.length > 0) {
+      selectedRoomPlans.forEach(plan => params.append('room_plan', plan));
+    }
+    
+    // Lokasyon
+    if (selectedCity) {
+      params.set('city', selectedCity.name);
+    }
+    if (selectedDistrict) {
+      params.set('district', selectedDistrict.name);
+    }
+    if (selectedNeighborhoods.length > 0) {
+      selectedNeighborhoods.forEach(neighborhood => params.append('neighborhood', neighborhood));
+    }
+    
+    // Diğer filtreler
+    if (selectedHeating.length > 0) {
+      selectedHeating.forEach(heating => params.append('heating', heating));
+    }
+    if (selectedPortfolioOwners.length > 0) {
+      selectedPortfolioOwners.forEach(owner => params.append('portfolio_owner_name', owner));
+    }
+    
+    // Fiyat ve m²
+    if (minPrice) params.set('min_price', minPrice);
+    if (maxPrice) params.set('max_price', maxPrice);
+    if (minGrossM2) params.set('min_gross_m2', minGrossM2);
+    if (maxGrossM2) params.set('max_gross_m2', maxGrossM2);
+    if (minBuildingFloors) params.set('min_building_floors', minBuildingFloors);
+    if (maxBuildingFloors) params.set('max_building_floors', maxBuildingFloors);
+    
+    // URL'yi güncelle ve sayfayı yenile
+    const newUrl = `/properties?${params.toString()}`;
+    window.location.href = newUrl;
+  };
+
   return (
-    <form className="space-y-3" method="get">
-      <select name="type" defaultValue={(current.type as string) ?? ""} className="w-full rounded-lg border border-gray-300 p-2 text-sm">
-        <option value="">Tür (hepsi)</option>
-        <option>Daire</option>
-        <option>İş Yeri</option>
-        <option>Arsa</option>
-      </select>
-      <select name="listing_type" defaultValue={(current.listing_type as string) ?? ""} className="w-full rounded-lg border border-gray-300 p-2 text-sm">
-        <option value="">İlan (hepsi)</option>
-        <option>Satılık</option>
-        <option>Kiralık</option>
-      </select>
-
-      <SearchableSelect
-        label="İl"
-        fetchUrl="/api/locations/cities"
-        autoFetch
-        onChange={(v) => {
-          setSelectedCity(v);
-          setSelectedDistrict(null);
-          setSelectedNeighborhoods([]);
-        }}
-      />
-      <input type="hidden" name="city" value={selectedCity?.name ?? ""} />
-      <SearchableSelect
-        key={selectedCity?.id ?? "no-city"}
-        label="İlçe"
-        fetchUrl="/api/locations/districts"
-        query={{ cityId: selectedCity?.id }}
-        disabled={!selectedCity}
-        autoFetch={Boolean(selectedCity)}
-        onChange={(v) => {
-          setSelectedDistrict(v);
-          setSelectedNeighborhoods([]);
-        }}
-      />
-      <input type="hidden" name="district" value={selectedDistrict?.name ?? ""} />
-      <MultiCheckDropdown 
-        label="Mahalle" 
-        options={neighborhoodOptions.map(n => n.name)} 
-        selected={selectedNeighborhoods} 
-        onChange={setSelectedNeighborhoods} 
-        placeholder="Mahalle seç" 
-      />
-      {/* Debug info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-500">
-          Debug: {neighborhoodOptions.length} mahalle yüklendi
-        </div>
-      )}
-      {selectedNeighborhoods.map((n, i) => {
-        const neighborhood = neighborhoodOptions.find(opt => opt.name === n);
-        return (
-          <input key={`nh-${i}-${n}`} type="hidden" name="neighborhood" value={neighborhood?.id ?? n} />
-        );
-      })}
-
-      <div className="grid grid-cols-2 gap-2">
-        <PriceInput name="min_price" label="Min Fiyat" />
-        <PriceInput name="max_price" label="Max Fiyat" />
+    <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Tür</div>
+        <select 
+          value={current.type as string ?? ""} 
+          onChange={(e) => setCurrent(prev => ({ ...prev, type: e.target.value }))}
+          className="w-full rounded-lg border border-gray-300 p-3 text-base"
+        >
+          <option value="">Tümü</option>
+          <option>Daire</option>
+          <option>İş Yeri</option>
+          <option>Arsa</option>
+        </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-sm text-gray-700">Min Brüt m²</label>
-          <input name="min_gross_m2" inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Max Brüt m²</label>
-          <input name="max_gross_m2" inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-        </div>
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">İlan Türü</div>
+        <select 
+          value={current.listing_type as string ?? ""} 
+          onChange={(e) => setCurrent(prev => ({ ...prev, listing_type: e.target.value }))}
+          className="w-full rounded-lg border border-gray-300 p-3 text-base"
+        >
+          <option value="">Tümü</option>
+          <option>Satılık</option>
+          <option>Kiralık</option>
+        </select>
       </div>
 
-      <MultiCheckDropdown label="Oda Sayısı" options={ROOM_PLANS} selected={selectedRoomPlans} onChange={(v) => setSelectedRoomPlans(v)} />
-      {selectedRoomPlans.map((r, idx) => (
-        <input key={`room_plan-${idx}-${r}`} type="hidden" name="room_plan" value={r} />
-      ))}
-
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-sm text-gray-700">Min Kat Sayısı</label>
-          <input name="min_building_floors" inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Max Kat Sayısı</label>
-          <input name="max_building_floors" inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-        </div>
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Şehir</div>
+        <SearchableSelect
+          label=""
+          placeholder="Şehir seçin"
+          fetchUrl="/api/locations/cities"
+          onChange={(city) => {
+            setSelectedCity(city);
+            setSelectedDistrict(null);
+            setSelectedNeighborhoods([]);
+          }}
+          value={selectedCity}
+        />
       </div>
 
-      <MultiCheckDropdown label="Isıtma" options={["Klima","Doğalgaz","Merkezi"]} selected={selectedHeating} onChange={setSelectedHeating} />
-      {selectedHeating.map((h, i) => (
-        <input key={`heat-${i}-${h}`} type="hidden" name="heating" value={h} />
-      ))}
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">İlçe</div>
+        <SearchableSelect
+          label=""
+          placeholder="İlçe seçin"
+          fetchUrl="/api/locations/districts"
+          query={districtQuery}
+          onChange={(district) => {
+            setSelectedDistrict(district);
+            setSelectedNeighborhoods([]);
+          }}
+          value={selectedDistrict}
+          disabled={!selectedCity}
+          autoFetch={true}
+        />
+      </div>
 
-      <MultiCheckDropdown label="Portföy Sahibi" options={portfolioOwnerOptions} selected={selectedPortfolioOwners} onChange={setSelectedPortfolioOwners} placeholder="Portföy sahibi seç" />
-      {selectedPortfolioOwners.map((n, i) => (
-        <input key={`po-${i}-${n}`} type="hidden" name="portfolio_owner_name" value={n} />
-      ))}
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Mahalle</div>
+        <MultiCheckDropdown
+          label=""
+          placeholder="Mahalle seçin"
+          options={neighborhoodOptions.map(n => n.name)}
+          selected={selectedNeighborhoods}
+          onChange={(neighborhoods) => {
+            setSelectedNeighborhoods(neighborhoods);
+          }}
+        />
+      </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="block text-sm text-gray-700">Havuz</label>
-          <select name="pool" className="w-full rounded-lg border border-gray-300 p-2 text-sm" defaultValue={(current.pool as string) ?? ""}>
-            <option value="">Tümü</option>
-            <option>Evet</option>
-            <option>Hayır</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Ebeveyn Banyosu</label>
-          <select name="ensuite_bath" className="w-full rounded-lg border border-gray-300 p-2 text-sm" defaultValue={(current.ensuite_bath as string) ?? ""}>
-            <option value="">Tümü</option>
-            <option>Evet</option>
-            <option>Hayır</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Giyinme Odası</label>
-          <select name="dressing_room" className="w-full rounded-lg border border-gray-300 p-2 text-sm" defaultValue={(current.dressing_room as string) ?? ""}>
-            <option value="">Tümü</option>
-            <option>Evet</option>
-            <option>Hayır</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Eşyalı</label>
-          <select name="furnished" className="w-full rounded-lg border border-gray-300 p-2 text-sm" defaultValue={(current.furnished as string) ?? ""}>
-            <option value="">Tümü</option>
-            <option>Evet</option>
-            <option>Hayır</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Balkon</label>
-          <select name="balcony" className="w-full rounded-lg border border-gray-300 p-2 text-sm" defaultValue={(current.balcony as string) ?? ""}>
-            <option value="">Tümü</option>
-            <option>Evet</option>
-            <option>Hayır</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-700">Site İçinde</label>
-          <select name="in_site" className="w-full rounded-lg border border-gray-300 p-2 text-sm" defaultValue={(current.in_site as string) ?? ""}>
-            <option value="">Tümü</option>
-            <option>Evet</option>
-            <option>Hayır</option>
-          </select>
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Oda Planı</div>
+        <MultiCheckDropdown
+          placeholder="Oda Planı"
+          options={roomPlanOptions}
+          selected={selectedRoomPlans}
+          onChange={setSelectedRoomPlans}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Isıtma</div>
+        <MultiCheckDropdown
+          placeholder="Isıtma"
+          options={heatingOptions}
+          selected={selectedHeating}
+          onChange={setSelectedHeating}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Portföy Sahibi</div>
+        <MultiCheckDropdown
+          placeholder="Portföy Sahibi"
+          options={portfolioOwnerOptions}
+          selected={selectedPortfolioOwners}
+          onChange={setSelectedPortfolioOwners}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Fiyat</div>
+        <div className="grid grid-cols-2 gap-2">
+          <PriceInput
+            placeholder="Min Fiyat"
+            value={minPrice}
+            onChange={setMinPrice}
+          />
+          <PriceInput
+            placeholder="Max Fiyat"
+            value={maxPrice}
+            onChange={setMaxPrice}
+          />
         </div>
       </div>
 
-      <div className="flex items-end gap-2">
-        <button className="btn btn-primary w-full" type="submit">Filtrele</button>
-        <Link href="/properties" className="btn btn-primary w-full text-center">Temizle</Link>
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Brüt m²</div>
+        <div className="grid grid-cols-2 gap-2">
+          <PriceInput
+            placeholder="Min Brüt m²"
+            value={minGrossM2}
+            onChange={setMinGrossM2}
+          />
+          <PriceInput
+            placeholder="Max Brüt m²"
+            value={maxGrossM2}
+            onChange={setMaxGrossM2}
+          />
+        </div>
       </div>
-    </form>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Kat Sayısı</div>
+        <div className="grid grid-cols-2 gap-2">
+          <PriceInput
+            placeholder="Min Kat"
+            value={minBuildingFloors}
+            onChange={setMinBuildingFloors}
+          />
+          <PriceInput
+            placeholder="Max Kat"
+            value={maxBuildingFloors}
+            onChange={setMaxBuildingFloors}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="text-sm font-medium text-gray-700">Site İçinde</div>
+        <select 
+          value={current.in_site as string ?? ""} 
+          onChange={(e) => setCurrent(prev => ({ ...prev, in_site: e.target.value }))}
+          className="w-full rounded-lg border border-gray-300 p-3 text-base"
+        >
+          <option value="">Tümü</option>
+          <option>Evet</option>
+          <option>Hayır</option>
+        </select>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+        <button 
+          type="button" 
+          onClick={handleFilter}
+          className="btn btn-primary w-full py-3 text-base font-medium"
+        >
+          Filtrele
+        </button>
+        <button 
+          type="button" 
+          onClick={() => {
+            window.location.href = '/properties';
+          }}
+          className="btn btn-secondary w-full py-3 text-base font-medium"
+        >
+          Temizle
+        </button>
+      </div>
+    </div>
   );
-}
+});
 
-
+PropertyFiltersBar.displayName = 'PropertyFiltersBar';

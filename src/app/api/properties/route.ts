@@ -22,7 +22,17 @@ export async function GET(req: Request): Promise<Response> {
   const heating = searchParams.get("heating");
   const city = searchParams.get("city");
   const district = searchParams.get("district");
-  const neighborhood = searchParams.get("neighborhood");
+  // ESKİ
+// const neighborhoods = searchParams.getAll("neighborhood");
+
+// YENİ: hem tekrar eden parametreleri hem "A,B" formatını destekle
+const splitCSV = (s: string) =>
+  s.split(",").map(v => decodeURIComponent(v).trim()).filter(Boolean);
+
+const neighborhoods = searchParams
+  .getAll("neighborhood")
+  .flatMap(v => splitCSV(v));
+
   const portfolioOwnerNames = searchParams.getAll("portfolio_owner_name");
   const aspectValues = searchParams.getAll("aspect");
   const credit = searchParams.get("credit");
@@ -36,12 +46,23 @@ export async function GET(req: Request): Promise<Response> {
   const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize") ?? "25")));
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  let query = supabaseAdmin.from("properties").select("id, type, listing_type, city, district, neighborhood, price, gross_m2, net_m2, room_plan");
+  let query = supabaseAdmin.from("properties").select("id, type, listing_type, city, district, neighborhood, price, gross_m2, net_m2, room_plan", { count: "exact" });
   if (type) query = query.eq("type", type);
   if (listing) query = query.eq("listing_type", listing);
   if (city) query = query.eq("city", city);
   if (district) query = query.eq("district", district);
-  if (neighborhood) query = query.eq("neighborhood", neighborhood);
+  // ESKİ
+// if (neighborhoods && neighborhoods.length > 0) {
+//   const orConditions = neighborhoods.map(n => `neighborhood.eq.${n}`).join(',');
+//   query = query.or(orConditions);
+// }
+
+// YENİ
+if (neighborhoods.length > 0) {
+  query = query.in("neighborhood", neighborhoods);
+}
+
+  
   if (portfolioOwnerNames && portfolioOwnerNames.length > 0) {
     // map names to ids first
     const ownersRes = await supabaseAdmin.from("portfolio_owners").select("id, first_name, last_name");
@@ -99,8 +120,25 @@ export async function GET(req: Request): Promise<Response> {
   const { data, error, count } = await query
     .order("created_at", { ascending: false })
     .range(from, to);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ properties: data, total: count ?? 0, page, pageSize });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  
+  const response = { 
+    properties: data, 
+    total: count ?? 0, 
+    page, 
+    pageSize,
+    // Network tab'ında daha iyi görünmesi için metadata ekle
+    _metadata: {
+      timestamp: new Date().toISOString(),
+      endpoint: 'properties',
+      method: req.method,
+      url: req.url
+    }
+  };
+  
+  return NextResponse.json(response);
 }
 
 export async function POST(req: Request): Promise<Response> {

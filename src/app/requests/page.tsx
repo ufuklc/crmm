@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { MatchModal } from "@/components/modals/MatchModal";
 import { RequestCreateModal } from "@/components/requests/RequestCreateModal";
 import { RequestFiltersBar } from "@/components/filters/RequestFiltersBar";
+import { Pagination } from "@/components/ui/Pagination";
 
 type RequestRow = {
   id: string;
@@ -180,20 +181,12 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
           </div>
           </>
         )}
-        {total > pageSize && (
-          <div className="mt-3 flex items-center justify-center gap-2">
-            {Array.from({ length: Math.ceil(total / pageSize) }, (_, i) => i + 1).map((p) => {
-              const params = new URLSearchParams();
-              if (sp) Object.entries(sp).forEach(([k, v]) => { if (typeof v === "string" && v) params.set(k, v); });
-              params.set("page", String(p));
-              params.set("pageSize", String(pageSize));
-              const qs = params.toString();
-              return (
-                <a key={p} href={`/requests?${qs}`} className={`rounded-md px-3 py-1 text-sm ${p === page ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>{p}</a>
-              );
-            })}
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={Math.ceil(total / pageSize)}
+          baseUrl="/requests"
+          searchParams={sp}
+        />
       </div>
     </div>
   );

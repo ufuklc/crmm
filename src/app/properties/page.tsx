@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { PropertyFiltersBar } from "@/components/filters/PropertyFiltersBar";
 import { ConfirmButton } from "@/components/forms/ConfirmButton";
 import { PropertyFiltersMobile } from "@/components/filters/PropertyFiltersMobile";
+import { Pagination } from "@/components/ui/Pagination";
 
 type PropertyRow = {
   id: string;
@@ -40,7 +41,7 @@ async function fetchProperties(searchParams?: Record<string, string | undefined>
   return { properties: (json.properties as PropertyRow[]) ?? [], total: Number(json.total ?? 0), page: Number(json.page ?? 1), pageSize: Number(json.pageSize ?? 25) };
 }
 
-export default async function PropertiesPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }): Promise<React.ReactElement> {
+export default async function PropertiesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<React.ReactElement> {
   const sp = await searchParams;
   const { properties, total, page, pageSize } = await fetchProperties(sp);
   return (
@@ -53,13 +54,13 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
       </div>
       <div className="md:grid md:grid-cols-12 md:gap-4">
         <aside className="md:col-span-3 mb-4 md:mb-0">
-          <div className="hidden md:block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700">
+          <div className="hidden md:block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700 h-fit">
             <PropertyFiltersBar initialSearchParams={sp as Record<string, string | undefined>} />
           </div>
           <PropertyFiltersMobile initialSearchParams={sp as Record<string, string | undefined>} />
         </aside>
         <section className="md:col-span-9">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700 h-fit">
             {properties.length === 0 ? (
               <div>Henüz varlık yok.</div>
             ) : (
@@ -131,20 +132,12 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
               </div>
               </>
             )}
-            {total > pageSize && (
-              <div className="mt-3 flex items-center justify-center gap-2">
-                {Array.from({ length: Math.ceil(total / pageSize) }, (_, i) => i + 1).map((p) => {
-                  const params = new URLSearchParams();
-                  if (sp) Object.entries(sp).forEach(([k, v]) => { if (typeof v === "string" && v) params.set(k, v); });
-                  params.set("page", String(p));
-                  params.set("pageSize", String(pageSize));
-                  const qs = params.toString();
-                  return (
-                    <a key={p} href={`/properties?${qs}`} className={`rounded-md px-3 py-1 text-sm ${p === page ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>{p}</a>
-                  );
-                })}
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(total / pageSize)}
+              baseUrl="/properties"
+              searchParams={sp}
+            />
           </div>
         </section>
       </div>

@@ -13,7 +13,19 @@ export async function GET(req: Request): Promise<Response> {
   if (inm && inm === etag) {
     return new NextResponse(null, { status: 304, headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=86400", ETag: etag } });
   }
-  return NextResponse.json({ items: data }, { headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=86400", ETag: etag, Vary: "Accept-Encoding" } });
+  
+  const response = { 
+    items: data,
+    _metadata: {
+      timestamp: new Date().toISOString(),
+      endpoint: 'cities',
+      method: req.method,
+      url: req.url,
+      count: data?.length ?? 0
+    }
+  };
+  
+  return NextResponse.json(response, { headers: { "Cache-Control": "public, max-age=86400, stale-while-revalidate=86400", ETag: etag, Vary: "Accept-Encoding" } });
 }
 
 

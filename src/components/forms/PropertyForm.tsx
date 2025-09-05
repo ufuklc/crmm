@@ -24,6 +24,7 @@ export function PropertyForm(): React.ReactElement {
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<{ id: string; name: string } | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedPortfolioOwnerId, setSelectedPortfolioOwnerId] = useState<string>("");
+  const [selectedAspects, setSelectedAspects] = useState<string[]>([]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
     e.preventDefault();
@@ -65,11 +66,7 @@ export function PropertyForm(): React.ReactElement {
       furnished: payload.furnished === "Evet" ? true : payload.furnished === "Hayır" ? false : null,
       bathroom_count: toNum(payload.bathroom_count),
       balcony: payload.balcony === "Evet" ? true : payload.balcony === "Hayır" ? false : null,
-      aspect: Array.isArray(payload.aspect)
-        ? (payload.aspect as unknown as string[])
-        : payload.aspect
-        ? [String(payload.aspect)]
-        : null,
+      aspect: selectedAspects.length > 0 ? selectedAspects : null,
       in_site: payload.in_site === "Evet" ? true : payload.in_site === "Hayır" ? false : null,
     } as Record<string, unknown>;
 
@@ -241,7 +238,17 @@ export function PropertyForm(): React.ReactElement {
             <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-700">
               {(["Kuzey","Güney","Doğu","Batı"] as const).map((dir) => (
                 <label key={dir} className="inline-flex items-center gap-2">
-                  <input type="checkbox" name="aspect" value={dir} />
+                  <input 
+                    type="checkbox" 
+                    checked={selectedAspects.includes(dir)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedAspects([...selectedAspects, dir]);
+                      } else {
+                        setSelectedAspects(selectedAspects.filter(a => a !== dir));
+                      }
+                    }}
+                  />
                   <span>{dir}</span>
                 </label>
               ))}

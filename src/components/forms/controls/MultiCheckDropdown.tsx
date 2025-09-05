@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 export function MultiCheckDropdown({
   label,
@@ -9,7 +9,9 @@ export function MultiCheckDropdown({
   selected,
   onChange,
   placeholder,
-  single,
+  single = false,
+  defaultValue,
+  value,
 }: {
   label: string;
   options: string[];
@@ -17,9 +19,14 @@ export function MultiCheckDropdown({
   onChange: (next: string[]) => void;
   placeholder?: string;
   single?: boolean; // true ise tek seçim yapılır (checkbox görünümünde)
+  defaultValue?: string[];
+  value?: string[];
 }): React.ReactElement {
   const [open, setOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // selected prop'unu kullan, internal state yok
+  const currentSelected = selected;
 
   useEffect(() => {
     function onDocClick(e: MouseEvent): void {
@@ -30,17 +37,21 @@ export function MultiCheckDropdown({
     return () => document.removeEventListener("click", onDocClick);
   }, []);
 
-  function toggleValue(value: string): void {
+  const toggleValue = useCallback((value: string): void => {
     if (single) {
-      onChange(selected.includes(value) ? [] : [value]);
-      setOpen(false);
+      const newSelected = currentSelected.includes(value) ? [] : [value];
+      onChange(newSelected);
+      setOpen(false); // Single seçimde dropdown kapat
     } else {
-      if (selected.includes(value)) onChange(selected.filter((v) => v !== value));
-      else onChange([...selected, value]);
+      const newSelected = currentSelected.includes(value) 
+        ? currentSelected.filter((v) => v !== value)
+        : [...currentSelected, value];
+      onChange(newSelected);
+      // Multi seçimde dropdown açık kalsın
     }
-  }
+  }, [single, currentSelected, onChange]);
 
-  const displayText = selected.length === 0 ? (placeholder ?? "Seçiniz") : selected.join(", ");
+  const displayText = currentSelected.length === 0 ? (placeholder ?? "Seçiniz") : currentSelected.join(", ");
 
   return (
     <div className="space-y-1" ref={containerRef}>
@@ -64,7 +75,7 @@ export function MultiCheckDropdown({
                   <label className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-indigo-50">
                     <input
                       type="checkbox"
-                      checked={selected.includes(opt)}
+                      checked={currentSelected.includes(opt)}
                       onChange={() => toggleValue(opt)}
                     />
                     <span>{opt}</span>

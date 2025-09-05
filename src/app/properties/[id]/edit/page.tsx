@@ -159,6 +159,23 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
             </select>
           </div>
         </div>
+        
+        <div>
+          <label className="block text-sm text-gray-700">Cephe (çoklu seçim)</label>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-700">
+            {(["Kuzey","Güney","Doğu","Batı"] as const).map((dir) => (
+              <label key={dir} className="inline-flex items-center gap-2">
+                <input 
+                  type="checkbox" 
+                  name="aspect" 
+                  value={dir}
+                  defaultChecked={p.aspect?.includes(dir) ?? false}
+                />
+                <span>{dir}</span>
+              </label>
+            ))}
+          </div>
+        </div>
         <div className="flex justify-end gap-2">
           <Link href="/properties" className="btn btn-primary">İptal</Link>
           <button type="submit" className="btn btn-primary">Kaydet</button>
