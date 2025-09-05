@@ -25,7 +25,7 @@ export default function SignInPage(): React.ReactElement {
     }
     
     // Başarılı giriş
-    router.push("/dashboard");
+    router.push("/");
     setSubmitting(false);
   }
 
