@@ -13,7 +13,7 @@ export default function SignInPage() {
             href="/dashboard"
             className="rounded-xl bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
           >
-            Dashboard'a Git
+            Dashboard&apos;a Git
           </Link>
         </div>
       </div>
