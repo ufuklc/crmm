@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #e5e7eb; /* gray-200 yerine: #EDEDED kullanılmıyor */
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Birincil buton stili (Yeni Varlık Ekle ile uyumlu) */
+.btn { @apply rounded-xl px-3 py-2 text-sm transition-colors; }
+.btn-primary { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
+.btn-outline { @apply border border-gray-200 text-white hover:bg-indigo-700 bg-indigo-600; }
+
+/* Sadece .btn sınıfları mor olsun; diğer button'ları ezmeyelim */
+.btn { @apply rounded-xl px-3 py-2 text-sm transition-colors; }
+.btn-primary { @apply bg-indigo-600 text-white hover:bg-indigo-700; }
+
+/* Dropdown/Select erişilebilirliği ve kontrast artırımı */
+select {
+  background-color: #ffffff;
+  color: #111827; /* gray-900 */
+}
+
+/* Custom SearchableSelect: sadece bu bileşenin tetikleyicisi beyaz kalsın */
+.searchable-select button {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+.hover\:bg-indigo-50:hover {
+  background-color: #eef2ff !important;
+}
+
+select:focus-visible {
+  outline: 2px solid #4f46e5; /* indigo-600 */
+  outline-offset: 2px;
+}
+
+/* Radix Dropdown/Menu varsayılanları */
+[role="menu"] {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb; /* gray-200 */
+  border-radius: 12px; /* rounded-xl */
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+}
+
+[role="menuitem"], [data-radix-collection-item] {
+  color: #374151; /* gray-700 */
+}
+
+/* Hover ve highlighted durumda daha koyu arka plan ve yazı rengi */
+[role="menuitem"]:hover,
+[data-highlighted] {
+  background-color: #eef2ff; /* indigo-50/100 arası */
+  color: #111827; /* gray-900 */
+}
+
+/* Disabled item'lar daha soluk */
+[data-disabled] {
+  color: #9ca3af; /* gray-400 */
+}
+
+/* Input/textarea okunabilirlik: metin/placeholder/odak kontrastı */
+input,
+textarea {
+  background-color: #ffffff;
+  color: #111827; /* gray-900 */
+  border: 1px solid #d1d5db; /* gray-300 */
+}
+
+/* Tüm form kontrolleri için ortak kontrast stilleri (btn'leri etkileme) */
+input,
+select,
+textarea,
+.searchable-select input {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Beyaz yüzeylerde soluk metinleri koyulaştır (ör. kartlar, tablolar, modallar) */
+.bg-white,
+.bg-white :where(p, span, div, th, td, label, small, li) {
+  color: #111827 !important;
+}
+
+/* Buton metinlerinin beyaz kalması için öncelik artırma */
+.btn-primary { color: #ffffff !important; }
+
+/* Disabled haller için görünürlik */
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled {
+  background-color: #f3f4f6 !important; /* gray-100 */
+  color: #6b7280 !important; /* gray-500 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280; /* gray-500 */
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #4f46e5; /* indigo-600 */
+  outline-offset: 2px;
+  border-color: #4f46e5;
+}
+
+input:disabled,
+textarea:disabled {
+  background-color: #f3f4f6; /* gray-100 */
+  color: #6b7280; /* gray-500 */
+}
+
+/* Chrome autofill sarı arkaplanını bastırma ve metin rengini koruma */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #111827;
+  transition: background-color 9999s ease-in-out 0s;
+}
