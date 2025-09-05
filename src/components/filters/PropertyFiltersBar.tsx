@@ -23,7 +23,7 @@ export function PropertyFiltersBar({
   const [selectedCity, setSelectedCity] = useState<{ id: string; name: string } | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<{ id: string; name: string } | null>(null);
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
-  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([]);
+  const [neighborhoodOptions, setNeighborhoodOptions] = useState<{ id: string; name: string }[]>([]);
   const [selectedHeating, setSelectedHeating] = useState<string[]>([]); 
   const [selectedPortfolioOwners, setSelectedPortfolioOwners] = useState<string[]>([]);
   const [portfolioOwnerOptions, setPortfolioOwnerOptions] = useState<string[]>([]);
@@ -41,7 +41,7 @@ export function PropertyFiltersBar({
         const r = await fetch(`/api/locations/neighborhoods?districtId=${encodeURIComponent(selectedDistrict.id)}`);
         const j = await r.json();
         const items = (j.items as { id: string; name: string }[]) ?? [];
-        setNeighborhoodOptions(items.map((x) => x.name));
+        setNeighborhoodOptions(items);
       } catch {
         setNeighborhoodOptions([]);
       }
@@ -102,10 +102,19 @@ export function PropertyFiltersBar({
         }}
       />
       <input type="hidden" name="district" value={selectedDistrict?.name ?? ""} />
-      <MultiCheckDropdown label="Mahalle" options={neighborhoodOptions} selected={selectedNeighborhoods} onChange={setSelectedNeighborhoods} placeholder="Mahalle seç" />
-      {selectedNeighborhoods.map((n, i) => (
-        <input key={`nh-${i}-${n}`} type="hidden" name="neighborhood" value={n} />
-      ))}
+      <MultiCheckDropdown 
+        label="Mahalle" 
+        options={neighborhoodOptions.map(n => n.name)} 
+        selected={selectedNeighborhoods} 
+        onChange={setSelectedNeighborhoods} 
+        placeholder="Mahalle seç" 
+      />
+      {selectedNeighborhoods.map((n, i) => {
+        const neighborhood = neighborhoodOptions.find(opt => opt.name === n);
+        return (
+          <input key={`nh-${i}-${n}`} type="hidden" name="neighborhood" value={neighborhood?.id ?? n} />
+        );
+      })}
 
       <div className="grid grid-cols-2 gap-2">
         <PriceInput name="min_price" label="Min Fiyat" />
