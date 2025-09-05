@@ -2,6 +2,7 @@ import type React from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { PropertyFiltersBar } from "@/components/filters/PropertyFiltersBar";
+import { ConfirmButton } from "@/components/forms/ConfirmButton";
 import { PropertyFiltersMobile } from "@/components/filters/PropertyFiltersMobile";
 
 type PropertyRow = {
@@ -90,7 +91,13 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
                         <td className="py-2">{p.gross_m2}{p.net_m2 ? ` / ${p.net_m2}` : ""}</td>
                         <td className="py-2">{new Intl.NumberFormat("tr-TR").format(p.price)} ₺</td>
                         <td className="py-2 text-right">
-                          <Link href={`/properties/${p.id}`} className="btn btn-primary">Detay</Link>
+                          <div className="flex gap-2 justify-end">
+                            <Link href={`/properties/${p.id}`} className="btn btn-primary">Detay</Link>
+                            <form action={`/api/properties/${p.id}`} method="post" className="inline">
+                              <input type="hidden" name="_method" value="delete" />
+                              <ConfirmButton className="btn btn-primary">Sil</ConfirmButton>
+                            </form>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -102,7 +109,13 @@ export default async function PropertiesPage({ searchParams }: { searchParams: P
                   <div key={p.id} className="rounded-xl border border-gray-200 p-3">
                     <div className="flex items-center justify-between">
                       <div className="text-sm font-medium text-gray-900">{p.type} • {p.listing_type}</div>
-                      <Link href={`/properties/${p.id}`} className="btn btn-primary text-xs">Detay</Link>
+                      <div className="flex gap-2">
+                        <Link href={`/properties/${p.id}`} className="btn btn-primary text-xs">Detay</Link>
+                        <form action={`/api/properties/${p.id}`} method="post" className="inline">
+                          <input type="hidden" name="_method" value="delete" />
+                          <ConfirmButton className="btn btn-primary text-xs">Sil</ConfirmButton>
+                        </form>
+                      </div>
                     </div>
                     <div className="mt-1 text-xs text-gray-600">{p.city} / {p.district}</div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
