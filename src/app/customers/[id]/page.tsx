@@ -96,6 +96,7 @@ export default async function CustomerDetailPage({ params }: PageParams): Promis
                   <th className="py-2">Bütçe</th>
                   <th className="py-2">Metrekare</th>
                   <th className="py-2">Durum</th>
+                  <th className="py-2">Aksiyonlar</th>
                   <th className="py-2 text-right">Eşleşme</th>
                 </tr>
               </thead>
@@ -104,10 +105,33 @@ export default async function CustomerDetailPage({ params }: PageParams): Promis
                   <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
                     <td className="py-2">{r.type}</td>
                     <td className="py-2">{r.listing_type}</td>
-                    <td className="py-2">{r.city ?? "-"} / {r.district ?? "-"}</td>
-                    <td className="py-2">{r.min_price ?? "-"} - {r.max_price ?? "-"}</td>
+                    <td className="py-2">{r.city ?? "-"} / {r.district ?? "-"} / {r.neighborhood ?? "Tümü"}</td>
+                    <td className="py-2">
+                      {r.min_price ? new Intl.NumberFormat("tr-TR").format(r.min_price) + " ₺" : "-"} - { }
+                      {r.max_price ? new Intl.NumberFormat("tr-TR").format(r.max_price) + " ₺" : "-"}
+                    </td>
                     <td className="py-2">{r.min_size ?? "-"} - {r.max_size ?? "-"}</td>
-                    <td className="py-2">{r.fulfilled ? "Tamamlandı" : "Aktif"}</td>
+                    <td className="py-2">
+                      <form action={`/api/requests/${r.id}`} method="post" className="inline">
+                        <input type="hidden" name="_method" value="patch" />
+                        <input type="hidden" name="fulfilled" value={r.fulfilled ? "false" : "true"} />
+                        <button
+                          className={`btn text-xs flex items-center gap-1 ${r.fulfilled ? "bg-green-600 hover:bg-green-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}`}
+                          type="submit"
+                          aria-label="Durumu değiştir"
+                          title="Durumu değiştir"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                            <path d="M4.5 7.5a6 6 0 0110.606-3.682.75.75 0 001.146-.966A7.5 7.5 0 103.75 12H6a.75.75 0 000-1.5H4.5v-3z"/>
+                            <path d="M19.5 16.5a6 6 0 01-10.606 3.682.75.75 0 00-1.146.966A7.5 7.5 0 1020.25 12H18a.75.75 0 000 1.5h1.5v3z"/>
+                          </svg>
+                          {r.fulfilled ? "Karşılandı" : "Aktif"}
+                        </button>
+                      </form>
+                    </td>
+                    <td className="py-2">
+                      <Link href={`/requests/${r.id}`} className="btn btn-primary text-xs">Detay</Link>
+                    </td>
                     <td className="py-2 text-right"><MatchModal requestId={r.id} count={countById[r.id as string] ?? 0} /></td>
                   </tr>
                 ))}

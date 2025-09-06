@@ -92,8 +92,11 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
                     </td>
                     <td className="py-2">{r.type}</td>
                     <td className="py-2">{r.listing_type}</td>
-                    <td className="py-2">{r.city ?? "-"} / {r.district ?? "-"}</td>
-                    <td className="py-2">{r.min_price ?? "-"} - {r.max_price ?? "-"}</td>
+                    <td className="py-2">{r.city ?? "-"} / {r.district ?? "-"} / {r.neighborhood ?? "Tümü"}</td>
+                    <td className="py-2">
+                    {r.min_price ? new Intl.NumberFormat("tr-TR").format(r.min_price) + " ₺" : "-"} - { }
+                    {r.max_price ? new Intl.NumberFormat("tr-TR").format(r.max_price) + " ₺" : "-"}
+                    </td>
                     <td className="py-2">{r.min_size ?? "-"} - {r.max_size ?? "-"}</td>
                     <td className="py-2">
                       <form action={`/api/requests/${r.id}`} method="post" className="inline">
@@ -134,47 +137,77 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
               </tbody>
             </table>
           </div>
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden space-y-2">
             {requests.map((r) => (
-              <div key={r.id} className="rounded-xl border border-gray-200 p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium text-gray-900">{r.type} • {r.listing_type}</div>
+              <div key={r.id} className="rounded-lg border border-gray-200 p-2.5 bg-white">
+                {/* Header - Kompakt */}
+                <div className="flex items-center justify-between mb-1.5">
                   <div className="flex items-center gap-2">
-                    <a href={`/requests/${r.id}`} className="btn btn-primary text-xs">Detay</a>
+                    <span className="text-sm font-semibold text-gray-900">{r.type}</span>
+                    <span className="text-xs text-gray-400">•</span>
+                    <span className="text-sm text-gray-600">{r.listing_type}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <a href={`/requests/${r.id}`} className="btn btn-primary text-xs px-2 py-1">Detay</a>
                     <MatchModal requestId={r.id} count={countById[r.id] ?? 0} />
-                    <form action={`/api/requests/${r.id}`} method="post" className="inline">
-                      <input type="hidden" name="_method" value="delete" />
-                      <button type="submit" aria-label="Sil" title="Sil" className="rounded-lg p-2 text-red-600 hover:bg-red-50">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                          <path fillRule="evenodd" d="M9 3.75A2.25 2.25 0 0111.25 1.5h1.5A2.25 2.25 0 0115 3.75V4.5h3.75a.75.75 0 010 1.5h-.69l-1.03 13.088A2.25 2.25 0 0114.79 21.75H9.21a2.25 2.25 0 01-2.24-2.662L5.94 6H5.25a.75.75 0 010-1.5H9V3.75zm1.5.75h3V3.75a.75.75 0 00-.75-.75h-1.5a.75.75 0 00-.75.75V4.5zm-2.78 1.5l1.02 12.938a.75.75 0 00.75.662h5.58a.75.75 0 00.75-.662L17.28 6H7.72z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    </form>
                   </div>
                 </div>
-                <div className="mt-1 text-xs text-gray-600">{r.city ?? "-"} / {r.district ?? "-"}</div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-gray-500">Bütçe:</span> <span className="text-gray-900">{r.min_price ?? "-"} - {r.max_price ?? "-"}</span></div>
-                  <div><span className="text-gray-500">m²:</span> <span className="text-gray-900">{r.min_size ?? "-"} - {r.max_size ?? "-"}</span></div>
+
+                {/* Müşteri Bilgisi */}
+                <div className="text-xs text-gray-600 mb-1.5">
+                  {r.customer ? (
+                    <a href={`/customers/${r.customer.id}`} className="text-indigo-600 hover:underline font-medium">
+                      {r.customer.first_name} {r.customer.last_name}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">Müşteri bilgisi yok</span>
+                  )}
+                </div>
+
+                {/* Konum - Tek satır */}
+                <div className="text-xs text-gray-500 mb-2">{r.city ?? "-"} / {r.district ?? "-"} / {r.neighborhood ?? "Tümü"}</div>
+
+                {/* Bilgiler - Kompakt grid */}
+                <div className="grid grid-cols-1 gap-1.5 text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Durum:</span>
-                    <form action={`/api/requests/${r.id}`} method="post" className="inline">
-                      <input type="hidden" name="_method" value="patch" />
-                      <input type="hidden" name="fulfilled" value={r.fulfilled ? "false" : "true"} />
-                      <button
-                        className={`btn text-xs flex items-center gap-1 ${r.fulfilled ? "bg-green-600 hover:bg-green-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}`}
-                        type="submit"
-                        aria-label="Durumu değiştir"
-                        title="Durumu değiştir"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                          <path d="M4.5 7.5a6 6 0 0110.606-3.682.75.75 0 001.146-.966A7.5 7.5 0 103.75 12H6a.75.75 0 000-1.5H4.5v-3z"/>
-                          <path d="M19.5 16.5a6 6 0 01-10.606 3.682.75.75 0 00-1.146.966A7.5 7.5 0 1020.25 12H18a.75.75 0 000 1.5h1.5v3z"/>
-                        </svg>
-                        {r.fulfilled ? "Karşılandı" : "Aktif"}
-                      </button>
-                    </form>
+                    <span className="text-gray-500">Bütçe:</span>
+                    <span className="text-gray-900 font-medium">
+                      {r.min_price ? new Intl.NumberFormat("tr-TR").format(r.min_price) + " ₺" : "-"} - 
+                      {r.max_price ? new Intl.NumberFormat("tr-TR").format(r.max_price) + " ₺" : "-"}
+                    </span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">m²:</span>
+                    <span className="text-gray-900">{r.min_size ?? "-"} - {r.max_size ?? "-"}</span>
+                  </div>
+                </div>
+
+                {/* Alt kısım - Durum ve Sil */}
+                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                  <form action={`/api/requests/${r.id}`} method="post" className="inline">
+                    <input type="hidden" name="_method" value="patch" />
+                    <input type="hidden" name="fulfilled" value={r.fulfilled ? "false" : "true"} />
+                    <button
+                      className={`btn text-xs flex items-center gap-1 px-2 py-1 ${r.fulfilled ? "bg-green-600 hover:bg-green-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}`}
+                      type="submit"
+                      aria-label="Durumu değiştir"
+                      title="Durumu değiştir"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
+                        <path d="M4.5 7.5a6 6 0 0110.606-3.682.75.75 0 001.146-.966A7.5 7.5 0 103.75 12H6a.75.75 0 000-1.5H4.5v-3z"/>
+                        <path d="M19.5 16.5a6 6 0 01-10.606 3.682.75.75 0 00-1.146.966A7.5 7.5 0 1020.25 12H18a.75.75 0 000 1.5h1.5v3z"/>
+                      </svg>
+                      {r.fulfilled ? "Karşılandı" : "Aktif"}
+                    </button>
+                  </form>
+                  <form action={`/api/requests/${r.id}`} method="post" className="inline">
+                    <input type="hidden" name="_method" value="delete" />
+                    <button type="submit" aria-label="Sil" title="Sil" className="rounded p-1.5 text-red-600 hover:bg-red-50">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                        <path fillRule="evenodd" d="M9 3.75A2.25 2.25 0 0111.25 1.5h1.5A2.25 2.25 0 0115 3.75V4.5h3.75a.75.75 0 010 1.5h-.69l-1.03 13.088A2.25 2.25 0 0114.79 21.75H9.21a2.25 2.25 0 01-2.24-2.662L5.94 6H5.25a.75.75 0 010-1.5H9V3.75zm1.5.75h3V3.75a.75.75 0 00-.75-.75h-1.5a.75.75 0 00-.75.75V4.5zm-2.78 1.5l1.02 12.938a.75.75 0 00.75.662h5.58a.75.75 0 00.75-.662L17.28 6H7.72z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </form>
                 </div>
               </div>
             ))}
