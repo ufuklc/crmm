@@ -17,6 +17,7 @@ interface Property {
   gross_m2: number;
   net_m2: number;
   rooms: string;
+  room_plan: string | null;
 }
 
 interface MatchesModalProps {
@@ -86,7 +87,7 @@ export function MatchesModal({ requestId, count, isOpen, onClose }: MatchesModal
     return `${gross} / ${net}`;
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) return <></>;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

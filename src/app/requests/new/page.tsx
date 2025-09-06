@@ -35,7 +35,7 @@ export default function NewRequestPage(): React.ReactElement {
   const searchParams = useSearchParams();
   
   // Form state
-  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customer, setCustomer] = useState<{ id: string; name: string } | null>(null);
   const [type, setType] = useState("Daire");
   const [listingType, setListingType] = useState("Satılık");
   const [cashOrLoan, setCashOrLoan] = useState("Nakit");
@@ -73,8 +73,7 @@ export default function NewRequestPage(): React.ReactElement {
           if (data.customer) {
             setCustomer({
               id: data.customer.id,
-              first_name: data.customer.first_name,
-              last_name: data.customer.last_name
+              name: `${data.customer.first_name} ${data.customer.last_name}`
             });
           }
         })
@@ -221,7 +220,7 @@ export default function NewRequestPage(): React.ReactElement {
                 </label>
                 {customer ? (
                   <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                    {customer.first_name} {customer.last_name}
+                    {customer.name}
                   </div>
                 ) : (
                   <SearchableSelect

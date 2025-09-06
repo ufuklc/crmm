@@ -246,7 +246,7 @@ export function CustomerDetail({ customer }: CustomerDetailProps): React.ReactEl
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
+                  onClick={() => setActiveTab(tab.key as 'details' | 'properties' | 'requests' | 'notes')}
                   className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none ${
                     activeTab === tab.key
                       ? "bg-white text-blue-600 shadow-sm"

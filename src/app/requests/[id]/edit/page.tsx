@@ -66,6 +66,7 @@ export default function EditRequestPage({ params }: { params: Promise<{ id: stri
   
   // Form state
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [customerId, setCustomerId] = useState<{ id: string; name: string } | null>(null);
   const [type, setType] = useState("Daire");
   const [listingType, setListingType] = useState("Satılık");
   const [cashOrLoan, setCashOrLoan] = useState("Nakit");
@@ -322,14 +323,11 @@ export default function EditRequestPage({ params }: { params: Promise<{ id: stri
                   Müşteri *
                 </label>
                 <SearchableSelect
+                  label="Müşteri"
+                  fetchUrl="/api/lookup/customers"
                   value={customerId}
-                  onValueChange={setCustomerId}
+                  onChange={setCustomerId}
                   placeholder="Müşteri seçin"
-                  options={customers.map(c => ({
-                    value: c.id,
-                    label: `${c.first_name} ${c.last_name}`
-                  }))}
-                  className="w-full"
                 />
               </div>
               <div>

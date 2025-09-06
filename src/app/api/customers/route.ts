@@ -16,10 +16,10 @@ export async function GET(req: Request): Promise<Response> {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: Record<string, unknown>) {
           cookieStore.set({ name, value, ...options })
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: Record<string, unknown>) {
           cookieStore.set({ name, value: '', ...options })
         },
       },
@@ -90,7 +90,7 @@ export async function GET(req: Request): Promise<Response> {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   
   // Profession isimlerini ayrı olarak al
-  let professionMap = new Map();
+  const professionMap = new Map();
   if (data && data.length > 0) {
     const professionIds = [...new Set(data.map(c => c.profession_id).filter(Boolean))];
     if (professionIds.length > 0) {
@@ -129,10 +129,10 @@ export async function POST(req: Request): Promise<Response> {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: Record<string, unknown>) {
           cookieStore.set({ name, value, ...options })
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: Record<string, unknown>) {
           cookieStore.set({ name, value: '', ...options })
         },
       },

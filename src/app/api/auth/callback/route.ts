@@ -16,8 +16,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-
-  let payload: any = {};
+  let payload: { event?: string; session?: { access_token?: string; refresh_token?: string } } = {};
   try {
     payload = await req.json();
   } catch {
@@ -69,6 +68,7 @@ export async function POST(req: Request) {
     }
 
     if (event === 'SIGNED_OUT') {
+      const supabase = createRouteHandlerClient({ cookies });
       const { error } = await supabase.auth.signOut();
       if (error) {
         return NextResponse.json({ ok: false, reason: 'signOut' }, { status: 500 });
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, ignored: true });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ ok: false, reason: 'exception' }, { status: 500 });
   }
 }

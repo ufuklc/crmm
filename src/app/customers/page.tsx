@@ -30,7 +30,7 @@ async function fetchCustomers(searchParams?: Record<string, string | undefined>)
     }
   });
   if (!res.ok) return { customers: [], total: 0, page: 1, pageSize: 25 };
-  let json: { customers?: any[]; total?: number; page?: number; pageSize?: number } = {};
+  let json: { customers?: CustomerRow[]; total?: number; page?: number; pageSize?: number } = {};
   try { json = await res.json(); } catch { json = {}; }
   
   const customers = json.customers ?? [];

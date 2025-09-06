@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -31,21 +31,21 @@ interface Property {
   gross_m2: number;
   net_m2: number | null;
   room_plan: string | null;
-  heating: string | null;
-  floor: number | null;
-  building_floors: number | null;
-  building_age: number | null;
-  ensuite_bath: boolean | null;
-  pool: boolean | null;
-  dressing_room: boolean | null;
-  furnished: boolean | null;
-  bathroom_count: number | null;
-  balcony: boolean | null;
-  in_site: boolean | null;
-  aspect: string[] | null;
-  credit: boolean | null;
-  customer_id: string | null;
-  portfolio_owner_id: string | null;
+  heating?: string | null;
+  floor?: number | null;
+  building_floors?: number | null;
+  building_age?: number | null;
+  ensuite_bath?: boolean | null;
+  pool?: boolean | null;
+  dressing_room?: boolean | null;
+  furnished?: boolean | null;
+  bathroom_count?: number | null;
+  balcony?: boolean | null;
+  in_site?: boolean | null;
+  aspect?: string[] | null;
+  credit?: boolean | null;
+  customer_id?: string | null;
+  portfolio_owner_id?: string | null;
 }
 
 interface PropertyDetailProps {
@@ -62,8 +62,8 @@ export function PropertyDetail({ property, customerName, portfolioOwnerName }: P
     return new Intl.NumberFormat("tr-TR").format(price) + " ₺";
   };
 
-  const formatBoolean = (value: boolean | null): string => {
-    if (value === null) return "-";
+  const formatBoolean = (value: boolean | null | undefined): string => {
+    if (value === null || value === undefined) return "-";
     return value ? "Evet" : "Hayır";
   };
 

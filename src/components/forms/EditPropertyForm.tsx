@@ -557,7 +557,7 @@ export function EditPropertyForm({ property }: EditPropertyFormProps): React.Rea
                     label=""
                     fetchUrl="/api/lookup/customers"
                     onChange={(customer) => setSelectedCustomerId(customer?.id || "")}
-                    initialValue={property.customer_id ? { id: property.customer_id, name: "" } : null}
+                    value={property.customer_id ? { id: property.customer_id, name: "" } : null}
                   />
                 </div>
 
@@ -567,7 +567,7 @@ export function EditPropertyForm({ property }: EditPropertyFormProps): React.Rea
                     label=""
                     fetchUrl="/api/lookup/portfolio-owners"
                     onChange={(owner) => setSelectedPortfolioOwnerId(owner?.id || "")}
-                    initialValue={property.portfolio_owner_id ? { id: property.portfolio_owner_id, name: "" } : null}
+                    value={property.portfolio_owner_id ? { id: property.portfolio_owner_id, name: "" } : null}
                   />
                 </div>
               </div>

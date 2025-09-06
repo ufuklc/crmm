@@ -28,9 +28,8 @@ type DashboardData = {
 };
 
 export default async function Dashboard(): Promise<React.ReactElement> {
-  const cookieStore = await cookies();
   const supabase = createServerComponentClient({ 
-    cookies: () => cookieStore 
+    cookies: async () => await cookies()
   });
 
   // 1) Sadece oturum yoksa yönlendir
@@ -103,12 +102,15 @@ export default async function Dashboard(): Promise<React.ReactElement> {
 
   const todayNotesData = ((todayNotes.data as unknown[]) ?? []).map((n: unknown) => {
     const note = n as {
+      id: string;
+      created_at: string;
       customer?: { id: string; first_name: string; last_name: string } | null;
       customers?: Array<{ id: string; first_name: string; last_name: string }>;
       [key: string]: unknown;
     };
     return {
-      ...note,
+      id: note.id,
+      created_at: note.created_at,
       customer:
         note.customer ??
         (Array.isArray(note.customers) ? note.customers[0] : null) ??
@@ -118,12 +120,17 @@ export default async function Dashboard(): Promise<React.ReactElement> {
 
   const todayPropsData = ((todayProps.data as unknown[]) ?? []).map((p: unknown) => {
     const prop = p as {
+      id: string;
+      type: string;
+      created_at: string;
       portfolio_owner?: { id: string; first_name: string; last_name: string } | null;
       portfolio_owners?: Array<{ id: string; first_name: string; last_name: string }>;
       [key: string]: unknown;
     };
     return {
-      ...prop,
+      id: prop.id,
+      type: prop.type,
+      created_at: prop.created_at,
       portfolio_owner:
         prop.portfolio_owner ??
         (Array.isArray(prop.portfolio_owners) ? prop.portfolio_owners[0] : null) ??
