@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 
 export const runtime = 'nodejs';        // <-- Edge değil, Node.js'te çalışsın
 export const dynamic = 'force-dynamic'; // <-- cache kapalı
@@ -29,7 +29,24 @@ export async function POST(req: Request) {
   try {
     if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
       if (session?.access_token && session?.refresh_token) {
-        const supabase = createRouteHandlerClient({ cookies });
+        const cookieStore = await cookies();
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            cookies: {
+              get(name: string) {
+                return cookieStore.get(name)?.value;
+              },
+              set(name: string, value: string, options: Record<string, unknown>) {
+                cookieStore.set({ name, value, ...options });
+              },
+              remove(name: string, options: Record<string, unknown>) {
+                cookieStore.set({ name, value: '', ...options });
+              },
+            },
+          }
+        );
         
         const { data, error } = await supabase.auth.setSession({
           access_token: session.access_token,
@@ -44,7 +61,6 @@ export async function POST(req: Request) {
         const response = NextResponse.json({ ok: true, session: data.session ? 'set' : 'not-set' });
         
         // Supabase cookie'lerini manuel olarak set et
-        const cookieStore = await cookies();
         cookieStore.set('sb-access-token', session.access_token, {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
@@ -68,7 +84,24 @@ export async function POST(req: Request) {
     }
 
     if (event === 'SIGNED_OUT') {
-      const supabase = createRouteHandlerClient({ cookies });
+      const cookieStore = await cookies();
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get(name: string) {
+              return cookieStore.get(name)?.value;
+            },
+            set(name: string, value: string, options: Record<string, unknown>) {
+              cookieStore.set({ name, value, ...options });
+            },
+            remove(name: string, options: Record<string, unknown>) {
+              cookieStore.set({ name, value: '', ...options });
+            },
+          },
+        }
+      );
       const { error } = await supabase.auth.signOut();
       if (error) {
         return NextResponse.json({ ok: false, reason: 'signOut' }, { status: 500 });

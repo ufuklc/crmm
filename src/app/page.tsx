@@ -1,6 +1,6 @@
 import React from "react";
 import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { redirect } from "next/navigation";
 import {
   Building2,
@@ -28,9 +28,24 @@ type DashboardData = {
 };
 
 export default async function Dashboard(): Promise<React.ReactElement> {
-  const supabase = createServerComponentClient({ 
-    cookies: async () => await cookies()
-  });
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options: Record<string, unknown>) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options: Record<string, unknown>) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 
   // 1) Sadece oturum yoksa yönlendir
   const {
