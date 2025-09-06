@@ -12,7 +12,7 @@ export async function GET(req: Request): Promise<Response> {
   let query = supabaseAdmin
     .from("customer_requests")
     .select(
-      "id, customer_id, type, listing_type, city, district, neighborhood, min_price, max_price, min_size, max_size, rooms, fulfilled, customer:customers(id, first_name, last_name)",
+      "id, customer_id, type, listing_type, city, district, neighborhood, min_price, max_price, min_size, max_size, rooms, fulfilled, customers(id, first_name, last_name)",
       { count: "exact" }
     );
   if (customerId) query = query.eq("customer_id", customerId);
@@ -24,13 +24,7 @@ export async function GET(req: Request): Promise<Response> {
     requests: data, 
     total: count ?? 0, 
     page, 
-    pageSize,
-    _metadata: {
-      timestamp: new Date().toISOString(),
-      endpoint: 'requests',
-      method: req.method,
-      url: req.url
-    }
+    pageSize
   };
   
   return NextResponse.json(response);

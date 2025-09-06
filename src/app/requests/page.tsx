@@ -1,11 +1,23 @@
-import type React from "react";
-import { headers } from "next/headers";
-import { MatchModal } from "@/components/modals/MatchModal";
-import { RequestCreateModal } from "@/components/requests/RequestCreateModal";
-import { RequestFiltersBar } from "@/components/filters/RequestFiltersBar";
-import { Pagination } from "@/components/ui/Pagination";
+"use client";
 
-type RequestRow = {
+import type React from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+import { 
+  ListChecks, 
+  Plus, 
+  Eye, 
+  Pencil, 
+  Trash2, 
+  RefreshCw, 
+  Search,
+  ChevronDown
+} from "lucide-react";
+import Link from "next/link";
+import { MatchesModal } from "@/components/modals/MatchesModal";
+
+interface Request {
   id: string;
   customer_id: string;
   type: string;
@@ -17,212 +29,458 @@ type RequestRow = {
   max_price: number | null;
   min_size: number | null;
   max_size: number | null;
-  rooms: number | null;
+  rooms: string | null;
   fulfilled: boolean;
-  customer?: { id: string; first_name: string; last_name: string } | null;
-};
-
-async function fetchRequests(searchParams?: Record<string, string | undefined>): Promise<{ requests: RequestRow[]; total: number; page: number; pageSize: number }> {
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
-  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const baseUrl = `${proto}://${host}`;
-  const qs = new URLSearchParams();
-  const ua = h.get("user-agent") ?? "";
-  const isMobile = /Mobi|Android|iPhone/i.test(ua);
-  if (searchParams) Object.entries(searchParams).forEach(([k, v]) => v && qs.set(k, v));
-  if (!qs.has("pageSize") && isMobile) qs.set("pageSize", "10");
-  const url = qs.toString() ? `${baseUrl}/api/requests?${qs}` : `${baseUrl}/api/requests`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return { requests: [], total: 0, page: 1, pageSize: 25 };
-  let json: { requests?: RequestRow[]; total?: number; page?: number; pageSize?: number } = {};
-  try { json = await res.json(); } catch { json = {}; }
-  return { requests: (json.requests as RequestRow[]) ?? [], total: Number(json.total ?? 0), page: Number(json.page ?? 1), pageSize: Number(json.pageSize ?? 25) };
+  customers?: { 
+    id: string; 
+    first_name: string; 
+    last_name: string; 
+  } | null;
 }
 
-export default async function RequestsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }): Promise<React.ReactElement> {
-  const sp = await searchParams;
-  const { requests, total, page, pageSize } = await fetchRequests(sp);
-  const h2 = await headers();
-  const host2 = h2.get("x-forwarded-host") ?? h2.get("host") ?? "localhost:3000";
-  const proto2 = h2.get("x-forwarded-proto") ?? (host2.startsWith("localhost") ? "http" : "https");
-  const baseUrl2 = `${proto2}://${host2}`;
-  const ids = requests.map((r) => r.id);
-  const resCounts = await fetch(`${baseUrl2}/api/requests/match-counts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
-  let jCounts: { counts?: Record<string, number> } = {};
-  try { jCounts = await resCounts.json(); } catch { jCounts = {}; }
-  const countById = jCounts.counts ?? {};
+interface MatchCounts {
+  [key: string]: number;
+}
+
+export default function RequestsPage(): React.ReactElement {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
+  const [matchCounts, setMatchCounts] = useState<MatchCounts>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showMatchesModal, setShowMatchesModal] = useState<string | null>(null);
+
+  // Debounced search
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Fetch requests
+  const fetchRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set("q", debouncedSearch);
+      
+      const response = await fetch(`/api/requests?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(data.requests || []);
+        
+        // Fetch match counts
+        if (data.requests?.length > 0) {
+          const ids = data.requests.map((r: Request) => r.id);
+          const countsResponse = await fetch("/api/requests/match-counts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids })
+          });
+          if (countsResponse.ok) {
+            const countsData = await countsResponse.json();
+            setMatchCounts(countsData.counts || {});
+          }
+        }
+      }
+    } catch (error) {
+      console.error("İstekler yüklenirken hata:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
+
+  // Update URL when search changes
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (debouncedSearch) {
+      params.set("q", debouncedSearch);
+    } else {
+      params.delete("q");
+    }
+    router.replace(`/requests?${params.toString()}`);
+  }, [debouncedSearch, router, searchParams]);
+
+  const handleStatusToggle = async (requestId: string, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fulfilled: !currentStatus })
+      });
+
+      if (response.ok) {
+        setRequests(prev => 
+          prev.map(req => 
+            req.id === requestId 
+              ? { ...req, fulfilled: !currentStatus }
+              : req
+          )
+        );
+      } else {
+        console.error("Durum güncellenemedi");
+      }
+    } catch (error) {
+      console.error("Durum güncelleme hatası:", error);
+    }
+  };
+
+  const handleDelete = async (requestId: string) => {
+    try {
+      const response = await fetch(`/api/requests/${requestId}`, {
+        method: "DELETE"
+      });
+
+      if (response.ok) {
+        setRequests(prev => prev.filter(req => req.id !== requestId));
+        setShowDeleteConfirm(null);
+      } else {
+        console.error("Silme işlemi başarısız");
+      }
+    } catch (error) {
+      console.error("Silme işlemi hatası:", error);
+    }
+  };
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("tr-TR").format(price) + " ₺";
+  };
+
+  const formatLocation = (city: string | null, district: string | null, neighborhood: string | null) => {
+    const parts = [city, district, neighborhood].filter(Boolean);
+    return parts.length > 0 ? parts.join(" / ") : "-";
+  };
+
+  const formatBudget = (minPrice: number | null, maxPrice: number | null) => {
+    const min = minPrice ? formatPrice(minPrice) : "-";
+    const max = maxPrice ? formatPrice(maxPrice) : "-";
+    return `${min} - ${max}`;
+  };
+
+  const formatSize = (minSize: number | null, maxSize: number | null) => {
+    const min = minSize ? minSize.toString() : "-";
+    const max = maxSize ? maxSize.toString() : "-";
+    return `${min} - ${max} m²`;
+  };
+
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">İstek Listesi</h1>
-        <RequestCreateModal />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-3">
+            <ListChecks className="h-8 w-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-slate-800">İstekler</h1>
+          </div>
+          <Link
+            href="/requests/new"
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            <span>Yeni İstek</span>
+          </Link>
+        </div>
+
+        {/* Search Bar */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Müşteri adına göre ara"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+              role="searchbox"
+              aria-label="Müşteri adına göre ara"
+            />
+          </div>
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-slate-600">Yükleniyor...</p>
+            </div>
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+            <ListChecks className="h-16 w-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-slate-600 mb-2">Kayıt bulunamadı</h3>
+            <p className="text-slate-500 mb-6">Arama kriterlerinize uygun istek bulunamadı</p>
+            <Link
+              href="/requests/new"
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+              <span>Yeni İstek Ekle</span>
+            </Link>
       </div>
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700">
-        <RequestFiltersBar initialCustomerId={sp?.customer_id} />
-        {requests.length === 0 ? (
-          <div>Henüz istek yok.</div>
         ) : (
           <>
-          <div className="hidden md:block overflow-x-auto max-h-[70vh] overflow-y-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="text-xs text-gray-500">
-                  <th className="py-2">Müşteri</th>
-                  <th className="py-2">Tür</th>
-                  <th className="py-2">İlan</th>
-                  <th className="py-2">Konum</th>
-                  <th className="py-2">Bütçe</th>
-                  <th className="py-2">Metrekare</th>
-                  <th className="py-2">Durum</th>
-                  <th className="py-2">Detay</th>
-                  <th className="py-2">Sil</th>
-                  <th className="py-2 text-right">Eşleşme</th>
+            {/* Desktop Table */}
+            <div className="hidden lg:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1200px]">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-32">Müşteri</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-24">Eşleşme</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-20">Tür</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-20">İlan</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-48">Konum</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-40">Bütçe</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-32">Metrekare</th>
+                      <th className="px-4 py-4 text-left text-sm font-medium text-slate-600 w-24">Durum</th>
+                      <th className="px-4 py-4 text-right text-sm font-medium text-slate-600 w-40">Aksiyonlar</th>
                 </tr>
               </thead>
-              <tbody>
-                {requests.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="py-2">
-                      {r.customer ? (
-                        <a href={`/customers/${r.customer.id}`} className="text-indigo-600 hover:underline">{r.customer.first_name} {r.customer.last_name}</a>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td className="py-2">{r.type}</td>
-                    <td className="py-2">{r.listing_type}</td>
-                    <td className="py-2">{r.city ?? "-"} / {r.district ?? "-"} / {r.neighborhood ?? "Tümü"}</td>
-                    <td className="py-2">
-                    {r.min_price ? new Intl.NumberFormat("tr-TR").format(r.min_price) + " ₺" : "-"} - { }
-                    {r.max_price ? new Intl.NumberFormat("tr-TR").format(r.max_price) + " ₺" : "-"}
-                    </td>
-                    <td className="py-2">{r.min_size ?? "-"} - {r.max_size ?? "-"}</td>
-                    <td className="py-2">
-                      <form action={`/api/requests/${r.id}`} method="post" className="inline">
-                        <input type="hidden" name="_method" value="patch" />
-                        <input type="hidden" name="fulfilled" value={r.fulfilled ? "false" : "true"} />
+                  <tbody className="divide-y divide-slate-200">
+                    {requests.map((request) => (
+                      <motion.tr
+                        key={request.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="hover:bg-slate-50"
+                      >
+                        <td className="px-4 py-4">
+                          {request.customers ? (
+                            <Link
+                              href={`/customers/${request.customers.id}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                            >
+                              {request.customers.first_name} {request.customers.last_name}
+                            </Link>
+                          ) : (
+                            <span className="text-slate-500">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => setShowMatchesModal(request.id)}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
+                          >
+                            <span className="text-xs">Eşleşme</span>
+                            <span className="bg-blue-200 text-blue-800 text-xs px-1.5 py-0.5 rounded-full">
+                              {matchCounts[request.id] || 0}
+                            </span>
+                          </button>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-slate-700">{request.type}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-slate-700">{request.listing_type}</span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-slate-700 text-sm">
+                            {formatLocation(request.city, request.district, request.neighborhood)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-slate-700 text-sm">
+                            {formatBudget(request.min_price, request.max_price)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-slate-700 text-sm">
+                            {formatSize(request.min_size, request.max_size)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <button
+                            onClick={() => handleStatusToggle(request.id, request.fulfilled)}
+                            className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                              request.fulfilled
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                : "bg-blue-50 text-blue-700 border border-blue-100"
+                            }`}
+                            title="Durumu değiştir"
+                            aria-pressed={request.fulfilled}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            <span>{request.fulfilled ? "Karşılandı" : "Aktif"}</span>
+                          </button>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex items-center justify-end space-x-1">
+                            <Link
+                              href={`/requests/${request.id}`}
+                              className="flex items-center space-x-1 px-2 py-1 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span className="text-xs">Detay</span>
+                            </Link>
+                            <Link
+                              href={`/requests/${request.id}/edit`}
+                              className="flex items-center space-x-1 px-2 py-1 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="text-xs">Düzenle</span>
+                            </Link>
+                            <button
+                              onClick={() => setShowDeleteConfirm(request.id)}
+                              className="flex items-center space-x-1 px-2 py-1 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="text-xs">Sil</span>
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="lg:hidden space-y-4">
+              {requests.map((request) => (
+                <motion.div
+                  key={request.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-lg font-semibold text-slate-800">
+                          {request.type} · {request.listing_type}
+                        </span>
                         <button
-                          className={`btn text-xs flex items-center gap-1 ${r.fulfilled ? "bg-green-600 hover:bg-green-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}`}
-                          type="submit"
-                          aria-label="Durumu değiştir"
+                          onClick={() => handleStatusToggle(request.id, request.fulfilled)}
+                          className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                            request.fulfilled
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              : "bg-blue-50 text-blue-700 border border-blue-100"
+                          }`}
                           title="Durumu değiştir"
+                          aria-pressed={request.fulfilled}
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                            <path d="M4.5 7.5a6 6 0 0110.606-3.682.75.75 0 001.146-.966A7.5 7.5 0 103.75 12H6a.75.75 0 000-1.5H4.5v-3z"/>
-                            <path d="M19.5 16.5a6 6 0 01-10.606 3.682.75.75 0 00-1.146.966A7.5 7.5 0 1020.25 12H18a.75.75 0 000 1.5h1.5v3z"/>
-                          </svg>
-                          {r.fulfilled ? "Karşılandı" : "Aktif"}
+                          <RefreshCw className="h-3 w-3" />
+                          <span>{request.fulfilled ? "Karşılandı" : "Aktif"}</span>
                         </button>
-                      </form>
-                    </td>
-                    <td className="py-2">
-                      <a href={`/requests/${r.id}`} className="btn btn-primary text-xs">Detay</a>
-                    </td>
-                    <td className="py-2">
-                      <MatchModal requestId={r.id} count={countById[r.id] ?? 0} />
-                    </td>
-                    <td className="py-2 text-right">
-                      <form action={`/api/requests/${r.id}`} method="post" className="inline">
-                        <input type="hidden" name="_method" value="delete" />
-                        <button type="submit" aria-label="Sil" title="Sil" className="rounded-lg p-2 text-red-600 hover:bg-red-50">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                            <path fillRule="evenodd" d="M9 3.75A2.25 2.25 0 0111.25 1.5h1.5A2.25 2.25 0 0115 3.75V4.5h3.75a.75.75 0 010 1.5h-.69l-1.03 13.088A2.25 2.25 0 0114.79 21.75H9.21a2.25 2.25 0 01-2.24-2.662L5.94 6H5.25a.75.75 0 010-1.5H9V3.75zm1.5.75h3V3.75a.75.75 0 00-.75-.75h-1.5a.75.75 0 00-.75.75V4.5zm-2.78 1.5l1.02 12.938a.75.75 0 00.75.662h5.58a.75.75 0 00.75-.662L17.28 6H7.72z" clipRule="evenodd" />
-                          </svg>
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </div>
+                      
+                      {request.customers && (
+                        <div className="text-sm text-slate-600 mb-2">
+                          <Link
+                            href={`/customers/${request.customers.id}`}
+                            className="text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                          >
+                            {request.customers.first_name} {request.customers.last_name}
+                          </Link>
+                        </div>
+                      )}
+                      
+                      <div className="text-sm text-slate-600 mb-3">
+                        <div className="mb-1">
+                          <span className="font-medium">Konum:</span> {formatLocation(request.city, request.district, request.neighborhood)}
+                        </div>
+                        <div className="mb-1">
+                          <span className="font-medium">Bütçe:</span> {formatBudget(request.min_price, request.max_price)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Metrekare:</span> {formatSize(request.min_size, request.max_size)}
           </div>
-          <div className="md:hidden space-y-2">
-            {requests.map((r) => (
-              <div key={r.id} className="rounded-lg border border-gray-200 p-2.5 bg-white">
-                {/* Header - Kompakt */}
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900">{r.type}</span>
-                    <span className="text-xs text-gray-400">•</span>
-                    <span className="text-sm text-gray-600">{r.listing_type}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <a href={`/requests/${r.id}`} className="btn btn-primary text-xs px-2 py-1">Detay</a>
-                    <MatchModal requestId={r.id} count={countById[r.id] ?? 0} />
                   </div>
                 </div>
-
-                {/* Müşteri Bilgisi */}
-                <div className="text-xs text-gray-600 mb-1.5">
-                  {r.customer ? (
-                    <a href={`/customers/${r.customer.id}`} className="text-indigo-600 hover:underline font-medium">
-                      {r.customer.first_name} {r.customer.last_name}
-                    </a>
-                  ) : (
-                    <span className="text-gray-400">Müşteri bilgisi yok</span>
-                  )}
-                </div>
-
-                {/* Konum - Tek satır */}
-                <div className="text-xs text-gray-500 mb-2">{r.city ?? "-"} / {r.district ?? "-"} / {r.neighborhood ?? "Tümü"}</div>
-
-                {/* Bilgiler - Kompakt grid */}
-                <div className="grid grid-cols-1 gap-1.5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">Bütçe:</span>
-                    <span className="text-gray-900 font-medium">
-                      {r.min_price ? new Intl.NumberFormat("tr-TR").format(r.min_price) + " ₺" : "-"} - 
-                      {r.max_price ? new Intl.NumberFormat("tr-TR").format(r.max_price) + " ₺" : "-"}
-                    </span>
+                    
+                    <div className="flex flex-col space-y-2">
+                      <Link
+                        href={`/requests/${request.id}`}
+                        className="flex items-center space-x-1 px-3 py-1 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="text-sm">Detay</span>
+                      </Link>
+                      <button
+                        onClick={() => setShowMatchesModal(request.id)}
+                        className="flex items-center space-x-1 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <span className="text-sm">Eşleşme</span>
+                        <span className="bg-blue-200 text-blue-800 text-xs px-1.5 py-0.5 rounded-full">
+                          {matchCounts[request.id] || 0}
+                        </span>
+                      </button>
+                      <div className="flex space-x-2">
+                        <Link
+                          href={`/requests/${request.id}/edit`}
+                          className="flex items-center space-x-1 px-3 py-1 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="text-sm">Düzenle</span>
+                        </Link>
+                        <button
+                          onClick={() => setShowDeleteConfirm(request.id)}
+                          className="flex items-center space-x-1 px-3 py-1 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          <span className="text-sm">Sil</span>
+                        </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-500">m²:</span>
-                    <span className="text-gray-900">{r.min_size ?? "-"} - {r.max_size ?? "-"}</span>
-                  </div>
-                </div>
-
-                {/* Alt kısım - Durum ve Sil */}
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-                  <form action={`/api/requests/${r.id}`} method="post" className="inline">
-                    <input type="hidden" name="_method" value="patch" />
-                    <input type="hidden" name="fulfilled" value={r.fulfilled ? "false" : "true"} />
-                    <button
-                      className={`btn text-xs flex items-center gap-1 px-2 py-1 ${r.fulfilled ? "bg-green-600 hover:bg-green-700 text-white" : "bg-amber-600 hover:bg-amber-700 text-white"}`}
-                      type="submit"
-                      aria-label="Durumu değiştir"
-                      title="Durumu değiştir"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
-                        <path d="M4.5 7.5a6 6 0 0110.606-3.682.75.75 0 001.146-.966A7.5 7.5 0 103.75 12H6a.75.75 0 000-1.5H4.5v-3z"/>
-                        <path d="M19.5 16.5a6 6 0 01-10.606 3.682.75.75 0 00-1.146.966A7.5 7.5 0 1020.25 12H18a.75.75 0 000 1.5h1.5v3z"/>
-                      </svg>
-                      {r.fulfilled ? "Karşılandı" : "Aktif"}
-                    </button>
-                  </form>
-                  <form action={`/api/requests/${r.id}`} method="post" className="inline">
-                    <input type="hidden" name="_method" value="delete" />
-                    <button type="submit" aria-label="Sil" title="Sil" className="rounded p-1.5 text-red-600 hover:bg-red-50">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-                        <path fillRule="evenodd" d="M9 3.75A2.25 2.25 0 0111.25 1.5h1.5A2.25 2.25 0 0115 3.75V4.5h3.75a.75.75 0 010 1.5h-.69l-1.03 13.088A2.25 2.25 0 0114.79 21.75H9.21a2.25 2.25 0 01-2.24-2.662L5.94 6H5.25a.75.75 0 010-1.5H9V3.75zm1.5.75h3V3.75a.75.75 0 00-.75-.75h-1.5a.75.75 0 00-.75.75V4.5zm-2.78 1.5l1.02 12.938a.75.75 0 00.75.662h5.58a.75.75 0 00.75-.662L17.28 6H7.72z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </form>
                 </div>
               </div>
+                </motion.div>
             ))}
           </div>
           </>
         )}
-        <Pagination
-          currentPage={page}
-          totalPages={Math.ceil(total / pageSize)}
-          baseUrl="/requests"
-          searchParams={sp}
-        />
-      </div>
+      </main>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-slate-800 mb-4">İsteği Sil</h3>
+            <p className="text-slate-600 mb-6">
+              Bu isteği silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                onClick={() => {
+                  handleDelete(showDeleteConfirm);
+                  setShowDeleteConfirm(null);
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Sil
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Matches Modal */}
+      <MatchesModal
+        requestId={showMatchesModal || ""}
+        count={showMatchesModal ? (matchCounts[showMatchesModal] || 0) : 0}
+        isOpen={!!showMatchesModal}
+        onClose={() => setShowMatchesModal(null)}
+      />
     </div>
   );
 }
-
-

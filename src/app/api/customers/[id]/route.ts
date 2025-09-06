@@ -7,7 +7,17 @@ export async function GET(_req: Request, { params }: Params): Promise<Response> 
   const { id } = await params;
   const { data, error } = await supabaseAdmin
     .from("customers")
-    .select("id, first_name, last_name, phone, cash_or_loan, profession_id, created_at")
+    .select(`
+      id, 
+      first_name, 
+      last_name, 
+      phone, 
+      cash_or_loan, 
+      profession_id, 
+      preferred_listing_type, 
+      created_at,
+      professions(name)
+    `)
     .eq("id", id)
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 404 });
@@ -25,6 +35,19 @@ export async function PATCH(req: Request, { params }: Params): Promise<Response>
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ id: data.id });
+}
+
+export async function PUT(req: Request, { params }: Params): Promise<Response> {
+  const body = await req.json();
+  const { id } = await params;
+  const { data, error } = await supabaseAdmin
+    .from("customers")
+    .update(body)
+    .eq("id", id)
+    .select("id")
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ customer: data });
 }
 
 export async function DELETE(_req: Request, { params }: Params): Promise<Response> {

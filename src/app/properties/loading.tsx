@@ -1,12 +1,8 @@
 import type React from "react";
-import { Spinner } from "@/components/ui/Spinner";
+import { PropertySkeleton } from "@/components/ui/PropertySkeleton";
 
 export default function PropertiesLoading(): React.ReactElement {
-  return (
-    <div className="min-h-[40vh] flex items-center justify-center">
-      <Spinner />
-    </div>
-  );
+  return <PropertySkeleton />;
 }
 
 

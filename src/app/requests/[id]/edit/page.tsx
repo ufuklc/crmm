@@ -2,16 +2,18 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { MultiCheckDropdown } from "@/components/forms/controls/MultiCheckDropdown";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { ArrowLeft, Pencil, Save, ChevronDown } from "lucide-react";
 import { SearchableSelect } from "@/components/forms/controls/SearchableSelect";
+import { MultiCheckDropdown } from "@/components/forms/controls/MultiCheckDropdown";
 
-type Req = {
+interface Request {
   id: string;
-  customer_id: string | null;
-  type: string | null;
-  listing_type: string | null;
-  cash_or_loan?: string | null;
+  customer_id: string;
+  type: string;
+  listing_type: string;
+  cash_or_loan: string;
   city: string | null;
   district: string | null;
   neighborhood: string | null;
@@ -19,324 +21,570 @@ type Req = {
   max_price: number | null;
   min_size: number | null;
   max_size: number | null;
-  rooms?: string | null;
-  heating?: string | null;
-  ensuite_bath?: boolean | null;
-  pool?: boolean | null;
-  dressing_room?: boolean | null;
-  furnished?: boolean | null;
-  bathroom_count?: number | null;
-  balcony?: boolean | null;
-  in_site?: boolean | null;
-  floor?: number | null;
-  building_floors?: number | null;
-  building_age?: number | null;
-};
+  rooms: string | null;
+  heating: string | null;
+  ensuite_bath: boolean | null;
+  pool: boolean | null;
+  dressing_room: boolean | null;
+  furnished: boolean | null;
+  bathroom_count: number | null;
+  balcony: boolean | null;
+  in_site: boolean | null;
+  floor: number | null;
+  building_floors: number | null;
+  building_age: number | null;
+  fulfilled: boolean;
+  created_at: string;
+}
 
-export default function RequestEditPage({ params }: { params: Promise<{ id: string }> }): React.ReactElement {
-  const [request, setRequest] = useState<Req | null>(null);
+interface Customer {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
+interface Location {
+  id: string;
+  name: string;
+}
+
+const ROOM_PLANS = [
+  "Stüdyo(1+0)", "1+1", "1.5+1", "2+0", "2+1", "2.5+1", "2+2", "3+0", "3+1", "3.5+1", "3+2", "3+3",
+  "4+0", "4+1", "4.5+1", "4.5+2", "4+2", "4+3", "4+4", "5+1", "5.5 + 1", "5+2", "5+3", "5+4",
+  "6+1", "6+2", "6.5 + 1", "6+3", "6+4", "7+1", "7+2", "7+3", "8+1", "8+2", "8+3", "8+4",
+  "9+1", "9+3", "9+4", "9+5", "9+6", "10+1", "10+2", "10 Üzeri"
+];
+
+const HEATING_OPTIONS = [
+  "Farketmez", "Doğalgaz", "Klima", "Soba", "Merkezi", "Kombi", "Elektrik"
+];
+
+export default function EditRequestPage({ params }: { params: Promise<{ id: string }> }): React.ReactElement {
+  const router = useRouter();
+  const [request, setRequest] = useState<Request | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Form state
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [type, setType] = useState("Daire");
+  const [listingType, setListingType] = useState("Satılık");
+  const [cashOrLoan, setCashOrLoan] = useState("Nakit");
+  
+  // Location state
+  const [city, setCity] = useState<Location | null>(null);
+  const [district, setDistrict] = useState<Location | null>(null);
+  const [neighborhoods, setNeighborhoods] = useState<Location[]>([]);
   const [selectedNeighborhoods, setSelectedNeighborhoods] = useState<string[]>([]);
-  const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([]);
-  const [selectedCity, setSelectedCity] = useState<{ id: string; name: string } | null>(null);
-  const [selectedDistrict, setSelectedDistrict] = useState<{ id: string; name: string } | null>(null);
+  
+  // Budget and size
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [minSize, setMinSize] = useState("");
+  const [maxSize, setMaxSize] = useState("");
+  
+  // Features
+  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
+  const [selectedHeating, setSelectedHeating] = useState<string[]>([]);
+  const [ensuiteBath, setEnsuiteBath] = useState("");
+  const [pool, setPool] = useState("");
+  
+  // Form state
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load request data
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchRequest = async () => {
       try {
         const { id } = await params;
-        const res = await fetch(`/api/requests/${id}`, { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          const req = data.request as Req;
+        const response = await fetch(`/api/requests/${id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const req = data.request as Request;
           setRequest(req);
           
-          // Mahalle verilerini ayarla
-          if (req.neighborhood) {
-            setSelectedNeighborhoods(req.neighborhood.split(',').map(n => n.trim()));
+          // Set form values
+          setType(req.type || "Daire");
+          setListingType(req.listing_type || "Satılık");
+          setCashOrLoan(req.cash_or_loan || "Nakit");
+          setMinPrice(req.min_price?.toString() || "");
+          setMaxPrice(req.max_price?.toString() || "");
+          setMinSize(req.min_size?.toString() || "");
+          setMaxSize(req.max_size?.toString() || "");
+          setEnsuiteBath(req.ensuite_bath === null ? "" : (req.ensuite_bath ? "Evet" : "Hayır"));
+          setPool(req.pool === null ? "" : (req.pool ? "Evet" : "Hayır"));
+          
+          // Set multi-select values
+          if (req.rooms) {
+            setSelectedRooms(req.rooms.split(", ").filter(Boolean));
           }
-          // İl ve ilçe bilgilerini ayarla (text olarak geldiği için ID'leri bulmamız gerekiyor)
+          if (req.heating) {
+            setSelectedHeating(req.heating.split(", ").filter(Boolean));
+          }
+          if (req.neighborhood) {
+            setSelectedNeighborhoods(req.neighborhood.split(", ").filter(Boolean));
+          }
+          
+          // Load city and district
           if (req.city) {
-            // İl ID'sini bul
             try {
-              const cityRes = await fetch('/api/locations/cities');
-              if (cityRes.ok) {
-                const cityData = await cityRes.json();
-                const city = cityData.items?.find((c: { id: string; name: string }) => c.name === req.city);
-                if (city) {
-                  setSelectedCity({ id: city.id, name: city.name });
+              const cityResponse = await fetch("/api/locations/cities");
+              if (cityResponse.ok) {
+                const cityData = await cityResponse.json();
+                const foundCity = cityData.items?.find((c: Location) => c.name === req.city);
+                if (foundCity) {
+                  setCity(foundCity);
                   
-                  // İlçe ID'sini bul
+                  // Load district
                   if (req.district) {
-                    const districtRes = await fetch(`/api/locations/districts?cityId=${city.id}`);
-                    if (districtRes.ok) {
-                      const districtData = await districtRes.json();
-                      const district = districtData.items?.find((d: { id: string; name: string }) => d.name === req.district);
-                      if (district) {
-                        setSelectedDistrict({ id: district.id, name: district.name });
+                    const districtResponse = await fetch(`/api/locations/districts?cityId=${foundCity.id}`);
+                    if (districtResponse.ok) {
+                      const districtData = await districtResponse.json();
+                      const foundDistrict = districtData.items?.find((d: Location) => d.name === req.district);
+                      if (foundDistrict) {
+                        setDistrict(foundDistrict);
                       }
                     }
                   }
                 }
               }
             } catch (error) {
-              console.error('İl/İlçe ID bulma hatası:', error);
-              // Fallback: sadece isimleri ayarla
-              setSelectedCity({ id: "", name: req.city });
-              if (req.district) {
-                setSelectedDistrict({ id: "", name: req.district });
-              }
+              console.error("Konum yükleme hatası:", error);
             }
           }
         }
       } catch (error) {
-        console.error('Veri yükleme hatası:', error);
+        console.error("İstek yükleme hatası:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+
+    fetchRequest();
   }, [params]);
 
-  // Mahalle seçeneklerini yükle
+  // Load neighborhoods when district changes
   useEffect(() => {
     const fetchNeighborhoods = async () => {
-      if (selectedDistrict?.id) {
-        try {
-          const response = await fetch(`/api/locations/neighborhoods?districtId=${selectedDistrict.id}`);
-          if (response.ok) {
-            const data = await response.json();
-            setNeighborhoodOptions(data.items?.map((n: { id: string; name: string }) => n.name) || []);
-          }
-        } catch (error) {
-          console.error('Mahalle yükleme hatası:', error);
+      if (!district?.id) {
+        setNeighborhoods([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/locations/neighborhoods?districtId=${district.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setNeighborhoods(data.items || []);
         }
-      } else {
-        setNeighborhoodOptions([]);
-        setSelectedNeighborhoods([]);
+      } catch (error) {
+        console.error("Mahalle yükleme hatası:", error);
+        setNeighborhoods([]);
       }
     };
+
     fetchNeighborhoods();
-  }, [selectedDistrict]);
+  }, [district]);
 
-  if (loading) return <div className="max-w-3xl mx-auto p-4">Yükleniyor...</div>;
-  if (!request) return <div className="max-w-3xl mx-auto p-4">Kayıt bulunamadı.</div>;
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
 
-  return (
-    <div className="max-w-3xl mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">İstek Düzenle</h1>
-        <div className="flex gap-2">
-          <Link href={`/requests/${request.id}`} className="btn btn-primary">İptal</Link>
+    if (!request) return;
+
+    // Validation
+    if (!city || !district) {
+      setError("Lütfen il ve ilçe seçin");
+      setSubmitting(false);
+      return;
+    }
+
+    // Min/Max validation
+    if (minPrice && maxPrice && Number(minPrice) > Number(maxPrice)) {
+      setError("Minimum fiyat maksimum fiyattan büyük olamaz");
+      setSubmitting(false);
+      return;
+    }
+
+    if (minSize && maxSize && Number(minSize) > Number(maxSize)) {
+      setError("Minimum metrekare maksimum metrekareden büyük olamaz");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const payload = {
+        type,
+        listing_type: listingType,
+        cash_or_loan: cashOrLoan,
+        city: city.name,
+        district: district.name,
+        neighborhood: selectedNeighborhoods.join(", ") || null,
+        min_price: minPrice ? Number(minPrice) : null,
+        max_price: maxPrice ? Number(maxPrice) : null,
+        min_size: minSize ? Number(minSize) : null,
+        max_size: maxSize ? Number(maxSize) : null,
+        rooms: selectedRooms.join(", ") || null,
+        heating: selectedHeating.join(", ") || null,
+        ensuite_bath: ensuiteBath ? (ensuiteBath === "Evet") : null,
+        pool: pool ? (pool === "Evet") : null,
+      };
+
+      const response = await fetch(`/api/requests/${request.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        router.push(`/requests/${request.id}`);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "İstek güncellenemedi");
+      }
+    } catch (error) {
+      console.error("İstek güncelleme hatası:", error);
+      setError("İstek güncellenirken bir hata oluştu");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Yükleniyor...</p>
         </div>
       </div>
+    );
+  }
 
-      <form action={`/api/requests/${request.id}`} method="post" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm space-y-3">
-        <input type="hidden" name="_method" value="patch" />
-        <input type="hidden" name="customer_id" value={request.customer_id || ""} />
-        <input type="hidden" name="neighborhood" value={selectedNeighborhoods.join(',')} />
+  if (!request) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-slate-800 mb-4">Kayıt bulunamadı</h1>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span>Geri Dön</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">Tür</label>
-            <select name="type" defaultValue={request.type ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Seçiniz</option>
-              <option>Daire</option>
-              <option>İş Yeri</option>
-              <option>Arsa</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">İlan Tipi</label>
-            <select name="listing_type" defaultValue={request.listing_type ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Seçiniz</option>
-              <option>Satılık</option>
-              <option>Kiralık</option>
-            </select>
+  const isValid = city && district;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex items-center space-x-4 mb-8">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center space-x-2 px-3 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="text-sm font-medium">Geri</span>
+          </button>
+          <div className="flex items-center space-x-3">
+            <Pencil className="h-8 w-8 text-blue-600" />
+            <h1 className="text-2xl font-bold text-slate-800">İsteği Düzenle</h1>
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm text-gray-700">Ödeme Tercihi</label>
-          <select name="cash_or_loan" defaultValue={request.cash_or_loan ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-            <option value="">Seçiniz</option>
-            <option value="Nakit">Nakit</option>
-            <option value="Kredi">Kredi</option>
-          </select>
-        </div>
+        {/* Form Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
+        >
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                {error}
+              </div>
+            )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">İl</label>
-            <SearchableSelect
-              label=""
-              placeholder="İl seçin"
-              fetchUrl="/api/locations/cities"
-              onChange={(city) => {
-                setSelectedCity(city);
-                setSelectedDistrict(null);
-                setSelectedNeighborhoods([]);
-              }}
-              value={selectedCity}
-            />
-            <input type="hidden" name="city" value={selectedCity?.name || ""} />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">İlçe</label>
-            <SearchableSelect
-              label=""
-              placeholder="İlçe seçin"
-              fetchUrl="/api/locations/districts"
-              query={{ cityId: selectedCity?.id }}
-              onChange={(district) => {
-                setSelectedDistrict(district);
-                setSelectedNeighborhoods([]);
-              }}
-              value={selectedDistrict}
-              disabled={!selectedCity}
-              autoFetch={true}
-            />
-            <input type="hidden" name="district" value={selectedDistrict?.name || ""} />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Mahalle(ler)</label>
-            <MultiCheckDropdown
-              label=""
-              placeholder="Mahalle seçin"
-              options={neighborhoodOptions}
-              selected={selectedNeighborhoods}
-              onChange={setSelectedNeighborhoods}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-sm text-gray-700">Min Fiyat</label>
-              <input name="min_price" defaultValue={request.min_price ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
+            {/* Müşteri & Temel */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-2">
+                  Müşteri *
+                </label>
+                <SearchableSelect
+                  value={customerId}
+                  onValueChange={setCustomerId}
+                  placeholder="Müşteri seçin"
+                  options={customers.map(c => ({
+                    value: c.id,
+                    label: `${c.first_name} ${c.last_name}`
+                  }))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-2">
+                  Tür *
+                </label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                  required
+                >
+                  <option value="Daire">Daire</option>
+                  <option value="İş Yeri">İş Yeri</option>
+                  <option value="Arsa">Arsa</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm text-gray-700">Max Fiyat</label>
-              <input name="max_price" defaultValue={request.max_price ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-2">
+                  İlan Tipi *
+                </label>
+                <select
+                  value={listingType}
+                  onChange={(e) => setListingType(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                  required
+                >
+                  <option value="Satılık">Satılık</option>
+                  <option value="Kiralık">Kiralık</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-800 mb-2">
+                  Ödeme Tercihi *
+                </label>
+                <select
+                  value={cashOrLoan}
+                  onChange={(e) => setCashOrLoan(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                  required
+                >
+                  <option value="Nakit">Nakit</option>
+                  <option value="Kredi">Kredi</option>
+                  <option value="İkisi de">İkisi de</option>
+                </select>
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+
+            {/* Konum */}
             <div>
-              <label className="block text-sm text-gray-700">Min m²</label>
-              <input name="min_size" defaultValue={request.min_size ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Konum</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    İl *
+                  </label>
+                  <SearchableSelect
+                    label=""
+                    placeholder="İl seçin"
+                    fetchUrl="/api/locations/cities"
+                    onChange={(city) => {
+                      setCity(city);
+                      setDistrict(null);
+                      setSelectedNeighborhoods([]);
+                    }}
+                    value={city}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    İlçe *
+                  </label>
+                  <SearchableSelect
+                    label=""
+                    placeholder="İlçe seçin"
+                    fetchUrl="/api/locations/districts"
+                    query={{ cityId: city?.id }}
+                    onChange={(district) => {
+                      setDistrict(district);
+                      setSelectedNeighborhoods([]);
+                    }}
+                    value={district}
+                    disabled={!city}
+                    autoFetch={true}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Mahalleler
+                  </label>
+                  <MultiCheckDropdown
+                    label=""
+                    placeholder="Mahalle seçin"
+                    options={neighborhoods.map(n => n.name)}
+                    selected={selectedNeighborhoods}
+                    onChange={setSelectedNeighborhoods}
+                  />
+                </div>
+              </div>
             </div>
+
+            {/* Bütçe & m² */}
             <div>
-              <label className="block text-sm text-gray-700">Max m²</label>
-              <input name="max_size" defaultValue={request.max_size ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Bütçe & m²</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      Min Fiyat
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={minPrice}
+                        onChange={(e) => setMinPrice(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-slate-500">
+                        TL
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      Max Fiyat
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={maxPrice}
+                        onChange={(e) => setMaxPrice(e.target.value)}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                        placeholder="0"
+                      />
+                      <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-slate-500">
+                        TL
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      Min m²
+                    </label>
+                    <input
+                      type="number"
+                      value={minSize}
+                      onChange={(e) => setMinSize(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-800 mb-2">
+                      Max m²
+                    </label>
+                    <input
+                      type="number"
+                      value={maxSize}
+                      onChange={(e) => setMaxSize(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">Oda Sayısı</label>
-            <select name="rooms" defaultValue={request.rooms ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Seçiniz</option>
-              {[
-                "Stüdyo(1+0)","1+1","1.5+1","2+0","2+1","2.5+1","2+2","3+0","3+1","3.5+1","3+2","3+3",
-                "4+0","4+1","4.5+1","4.5+2","4+2","4+3","4+4","5+1","5.5 + 1","5+2","5+3","5+4",
-                "6+1","6+2","6.5 + 1","6+3","6+4","7+1","7+2","7+3","8+1","8+2","8+3","8+4",
-                "9+1","9+3","9+4","9+5","9+6","10+1","10+2","10 Üzeri"
-              ].map((rp) => (
-                <option key={rp} value={rp}>{rp}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Isıtma</label>
-            <select name="heating" defaultValue={request.heating ?? ""} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Seçiniz</option>
-              <option>Klima</option>
-              <option>Doğalgaz</option>
-              <option>Merkezi</option>
-            </select>
-          </div>
-        </div>
+            {/* Özellikler */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Özellikler</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Oda Sayısı
+                  </label>
+                  <MultiCheckDropdown
+                    label=""
+                    placeholder="Oda sayısı seçin"
+                    options={ROOM_PLANS}
+                    selected={selectedRooms}
+                    onChange={setSelectedRooms}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Isıtma
+                  </label>
+                  <MultiCheckDropdown
+                    label=""
+                    placeholder="Isıtma türü seçin"
+                    options={HEATING_OPTIONS}
+                    selected={selectedHeating}
+                    onChange={setSelectedHeating}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Ebeveyn Banyosu
+                  </label>
+                  <select
+                    value={ensuiteBath}
+                    onChange={(e) => setEnsuiteBath(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="">Farketmez</option>
+                    <option value="Evet">Evet</option>
+                    <option value="Hayır">Hayır</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-800 mb-2">
+                    Havuz
+                  </label>
+                  <select
+                    value={pool}
+                    onChange={(e) => setPool(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 focus:border-blue-300 focus:ring-2 focus:ring-blue-200"
+                  >
+                    <option value="">Farketmez</option>
+                    <option value="Evet">Evet</option>
+                    <option value="Hayır">Hayır</option>
+                  </select>
+                </div>
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">Ebeveyn Banyosu</label>
-            <select name="ensuite_bath" defaultValue={request.ensuite_bath == null ? "" : request.ensuite_bath ? "Evet" : "Hayır"} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Farketmez</option>
-              <option>Evet</option>
-              <option>Hayır</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Havuz</label>
-            <select name="pool" defaultValue={request.pool == null ? "" : request.pool ? "Evet" : "Hayır"} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Farketmez</option>
-              <option>Evet</option>
-              <option>Hayır</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Giyinme Odası</label>
-            <select name="dressing_room" defaultValue={request.dressing_room == null ? "" : request.dressing_room ? "Evet" : "Hayır"} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Farketmez</option>
-              <option>Evet</option>
-              <option>Hayır</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Eşyalı</label>
-            <select name="furnished" defaultValue={request.furnished == null ? "" : request.furnished ? "Evet" : "Hayır"} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Farketmez</option>
-              <option>Evet</option>
-              <option>Hayır</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">Banyo Sayısı</label>
-            <input name="bathroom_count" defaultValue={request.bathroom_count ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Balkon</label>
-            <select name="balcony" defaultValue={request.balcony == null ? "" : request.balcony ? "Evet" : "Hayır"} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Farketmez</option>
-              <option>Evet</option>
-              <option>Hayır</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Site İçinde</label>
-            <select name="in_site" defaultValue={request.in_site == null ? "" : request.in_site ? "Evet" : "Hayır"} className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm">
-              <option value="">Farketmez</option>
-              <option>Evet</option>
-              <option>Hayır</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-sm text-gray-700">Bulunduğu Kat</label>
-            <input name="floor" defaultValue={request.floor ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Bina Kat Sayısı</label>
-            <input name="building_floors" defaultValue={request.building_floors ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700">Bina Yaşı</label>
-            <input name="building_age" defaultValue={request.building_age ?? undefined} inputMode="numeric" className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm" />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Link href={`/requests/${request.id}`} className="btn btn-primary">İptal</Link>
-          <button type="submit" className="btn btn-primary">Kaydet</button>
-        </div>
-      </form>
+            {/* Buttons */}
+            <div className="flex space-x-4 pt-6 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="flex-1 px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                İptal
+              </button>
+              <button
+                type="submit"
+                disabled={!isValid || submitting}
+                className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Save className="h-5 w-5" />
+                <span>{submitting ? "Güncelleniyor..." : "Güncelle"}</span>
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </main>
     </div>
   );
 }

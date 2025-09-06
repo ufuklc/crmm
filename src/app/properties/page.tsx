@@ -1,10 +1,20 @@
 import type React from "react";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { PropertyFiltersBar } from "@/components/filters/PropertyFiltersBar";
-import { ConfirmButton } from "@/components/forms/ConfirmButton";
-import { PropertyFiltersMobile } from "@/components/filters/PropertyFiltersMobile";
+import { redirect } from "next/navigation";
+import { 
+  Building2, 
+  Plus, 
+  Eye, 
+  Trash2,
+  ChevronDown,
+  Check,
+  Filter
+} from "lucide-react";
+import { PropertyFilters } from "@/components/filters/PropertyFilters";
 import { Pagination } from "@/components/ui/Pagination";
+import { MobileFilters } from "@/components/filters/MobileFilters";
+import { SortDropdown } from "@/components/filters/SortDropdown";
 
 type PropertyRow = {
   id: string;
@@ -21,6 +31,7 @@ type PropertyRow = {
   building_floors?: number | null;
   building_age?: number | null;
   heating?: string | null;
+  portfolio_owner?: { id: string; first_name: string; last_name: string } | null;
 };
 
 async function fetchProperties(searchParams?: Record<string, string | string[] | undefined>): Promise<{ properties: PropertyRow[]; total: number; page: number; pageSize: number }> {
@@ -28,131 +39,271 @@ async function fetchProperties(searchParams?: Record<string, string | string[] |
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const baseUrl = `${proto}://${host}`;
-  const qs = new URLSearchParams();
-  const ua = h.get("user-agent") ?? "";
-  const isMobile = /Mobi|Android|iPhone/i.test(ua);
-  if (searchParams) {
-    Object.entries(searchParams).forEach(([k, v]) => {
-      if (v) {
-        if (Array.isArray(v)) {
-          v.forEach(item => qs.append(k, item));
-        } else {
-          qs.set(k, v);
+  
+  try {
+    const qs = new URLSearchParams();
+    const ua = h.get("user-agent") ?? "";
+    const isMobile = /Mobi|Android|iPhone/i.test(ua);
+    
+    if (searchParams) {
+      Object.entries(searchParams).forEach(([k, v]) => {
+        if (v) {
+          if (Array.isArray(v)) {
+            v.forEach(item => qs.append(k, item));
+          } else {
+            qs.set(k, v);
+          }
         }
+      });
+    }
+    
+    if (!qs.has("pageSize")) qs.set("pageSize", "15");
+    
+    const url = qs.toString() ? `${baseUrl}/api/properties?${qs}` : `${baseUrl}/api/properties`;
+    const res = await fetch(url, { 
+      cache: "no-store",
+      headers: {
+        'Cookie': h.get('cookie') ?? ''
       }
     });
+    
+    if (!res.ok) {
+      redirect("/sign-in");
+    }
+    
+    const json = await res.json();
+    return { 
+      properties: (json.properties as PropertyRow[]) ?? [], 
+      total: Number(json.total ?? 0), 
+      page: Number(json.page ?? 1), 
+      pageSize: Number(json.pageSize ?? 25) 
+    };
+  } catch (error) {
+    console.error("Properties fetch error:", error);
+    redirect("/sign-in");
   }
-  if (!qs.has("pageSize") && isMobile) qs.set("pageSize", "10");
-  const url = qs.toString() ? `${baseUrl}/api/properties?${qs}` : `${baseUrl}/api/properties`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return { properties: [], total: 0, page: 1, pageSize: 25 };
-  let json: { properties?: PropertyRow[]; total?: number; page?: number; pageSize?: number } = {};
-  try { json = await res.json(); } catch { json = {}; }
-  return { properties: (json.properties as PropertyRow[]) ?? [], total: Number(json.total ?? 0), page: Number(json.page ?? 1), pageSize: Number(json.pageSize ?? 25) };
 }
 
-export default async function PropertiesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<React.ReactElement> {
+export default async function PropertiesPage({ 
+  searchParams 
+}: { 
+  searchParams: Promise<Record<string, string | string[] | undefined>> 
+}): Promise<React.ReactElement> {
   const sp = await searchParams;
   const { properties, total, page, pageSize } = await fetchProperties(sp);
+
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-gray-900">Varlıklar</h1>
-        <Link href="/properties/new" className="rounded-xl bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700">
-          Yeni Varlık Ekle
-        </Link>
-      </div>
-      <div className="md:grid md:grid-cols-12 md:gap-4">
-        <aside className="md:col-span-3 mb-4 md:mb-0">
-          <div className="hidden md:block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700 h-fit">
-            <PropertyFiltersBar initialSearchParams={sp as Record<string, string | undefined>} />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Varlıklar</h1>
+            <p className="text-slate-600 mt-1">Emlak portföyünüzü yönetin</p>
           </div>
-          <PropertyFiltersMobile initialSearchParams={sp as Record<string, string | undefined>} />
-        </aside>
-        <section className="md:col-span-9">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm text-sm text-gray-700 h-fit">
-            {properties.length === 0 ? (
-              <div>Henüz varlık yok.</div>
-            ) : (
-              <>
-              <div className="hidden md:block overflow-x-auto max-h-[70vh] overflow-y-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="text-xs text-gray-500">
-                      <th className="py-2">Tür</th>
-                      <th className="py-2">İlan</th>
-                      <th className="py-2">İl/İlçe/Mahalle</th>
-                      <th className="py-2">Oda Sayısı</th>
-                      <th className="py-2">Brüt/Net m²</th>
-                      <th className="py-2">Fiyat</th>
-                      <th className="py-2 text-right">Aksiyonlar</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {properties.map((p) => (
-                      <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
-                        <td className="py-2">
-                          <Link href={`/properties/${p.id}`} className="text-indigo-600 hover:underline">
-                            {p.type}
-                          </Link>
-                        </td>
-                        <td className="py-2">{p.listing_type}</td>
-                        <td className="py-2">{p.city} / {p.district} / {p.neighborhood}</td>
-                        <td className="py-2">{p.room_plan ?? "-"}</td>
-                        <td className="py-2">{p.gross_m2}{p.net_m2 ? ` / ${p.net_m2}` : ""}</td>
-                        <td className="py-2">{new Intl.NumberFormat("tr-TR").format(p.price)} ₺</td>
-                        <td className="py-2 text-right">
-                          <div className="flex gap-2 justify-end">
-                            <Link href={`/properties/${p.id}`} className="btn btn-primary">Detay</Link>
-                            <form action={`/api/properties/${p.id}`} method="post" className="inline">
-                              <input type="hidden" name="_method" value="delete" />
-                              <ConfirmButton className="btn btn-primary">Sil</ConfirmButton>
-                            </form>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          <Link 
+            href="/properties/new" 
+            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Yeni Varlık</span>
+          </Link>
+        </div>
+
+        {/* Mobile Filters Button */}
+        <div className="lg:hidden mb-4">
+          <MobileFilters initialSearchParams={sp as Record<string, string | undefined>} />
+        </div>
+
+        {/* Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+          {/* Filters Panel - Desktop Only */}
+          <aside className="hidden lg:block lg:col-span-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm h-full">
+              <h2 className="text-lg font-semibold text-slate-800 mb-4">Filtreler</h2>
+              <PropertyFilters initialSearchParams={sp as Record<string, string | undefined>} />
+            </div>
+          </aside>
+
+          {/* Assets Table */}
+          <section className="lg:col-span-8">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm h-full flex flex-col">
+              {/* Table Header */}
+              <div className="p-6 border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-slate-800">Varlık Listesi</h2>
+                  <div className="flex items-center space-x-4">
+                    <SortDropdown currentSort={Array.isArray(sp.sort) ? sp.sort[0] : sp.sort} />
+                    <span className="text-sm text-slate-500">{total} varlık</span>
+                  </div>
+                </div>
               </div>
-              <div className="md:hidden space-y-3">
-                {properties.map((p) => (
-                  <div key={p.id} className="rounded-xl border border-gray-200 p-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-medium text-gray-900">{p.type} • {p.listing_type}</div>
-                      <div className="flex gap-2">
-                        <Link href={`/properties/${p.id}`} className="btn btn-primary text-xs">Detay</Link>
-                        <form action={`/api/properties/${p.id}`} method="post" className="inline">
-                          <input type="hidden" name="_method" value="delete" />
-                          <ConfirmButton className="btn btn-primary text-xs">Sil</ConfirmButton>
-                        </form>
+
+              {/* Table Content */}
+              <div className="overflow-x-auto flex-1">
+                {properties.length === 0 ? (
+                  <div className="p-8 text-center text-slate-500">
+                    <Building2 className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                    <p className="text-lg font-medium">Henüz varlık bulunmuyor</p>
+                    <p className="text-sm mt-1">Filtreleri temizleyerek daha fazla sonuç görebilirsiniz</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Desktop Table */}
+                    <div className="hidden lg:block">
+                      <table className="w-full table-fixed">
+                        <thead className="bg-slate-50">
+                          <tr>
+                            <th className="w-20 px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tür</th>
+                            <th className="w-20 px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">İlan</th>
+                            <th className="w-48 px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Konum</th>
+                            <th className="w-16 px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Oda</th>
+                            <th className="w-20 px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">m²</th>
+                            <th className="w-32 px-3 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Fiyat</th>
+                            <th className="w-40 px-3 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">Aksiyonlar</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200">
+                          {properties.map((p) => (
+                            <tr key={p.id} className="hover:bg-blue-50/50 transition-colors">
+                              <td className="px-3 py-4 text-sm">
+                                <Link 
+                                  href={`/properties/${p.id}`} 
+                                  className="text-blue-600 hover:text-blue-700 font-medium truncate block"
+                                  title={p.type}
+                                >
+                                  {p.type}
+                                </Link>
+                              </td>
+                              <td className="px-3 py-4 text-sm text-slate-900 truncate" title={p.listing_type}>
+                                {p.listing_type}
+                              </td>
+                              <td className="px-3 py-4 text-sm text-slate-900 truncate" title={`${p.city} / ${p.district} / ${p.neighborhood || "Tümü"}`}>
+                                {p.city} / {p.district} / {p.neighborhood || "Tümü"}
+                              </td>
+                              <td className="px-3 py-4 text-sm text-slate-900 text-center">
+                                {p.room_plan || "-"}
+                              </td>
+                              <td className="px-3 py-4 text-sm text-slate-900 text-center">
+                                {p.gross_m2}{p.net_m2 ? ` / ${p.net_m2}` : ""}
+                              </td>
+                              <td className="px-3 py-4 text-sm font-medium text-slate-900 text-right">
+                                {new Intl.NumberFormat("tr-TR").format(p.price)} ₺
+                              </td>
+                              <td className="px-3 py-4 text-right text-sm font-medium">
+                                <div className="flex items-center justify-end space-x-1">
+                                  <Link 
+                                    href={`/properties/${p.id}`}
+                                    className="inline-flex items-center px-2 py-1 border border-slate-300 rounded text-slate-700 bg-white hover:bg-slate-50 transition-colors text-xs"
+                                    title="Detay"
+                                  >
+                                    <Eye className="h-3 w-3" />
+                                  </Link>
+                                  <form action={`/api/properties/${p.id}`} method="post" className="inline">
+                                    <input type="hidden" name="_method" value="delete" />
+                                    <button 
+                                      type="submit"
+                                      className="inline-flex items-center px-2 py-1 border border-red-300 rounded text-red-700 bg-white hover:bg-red-50 transition-colors text-xs"
+                                      title="Sil"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </button>
+                                  </form>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="lg:hidden">
+                      <div className="p-4 space-y-4">
+                        {properties.map((p) => (
+                          <div key={p.id} className="border border-slate-200 rounded-xl p-4 hover:bg-blue-50/50 transition-colors">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <Link 
+                                  href={`/properties/${p.id}`} 
+                                  className="text-blue-600 hover:text-blue-700 font-medium text-lg"
+                                >
+                                  {p.type}
+                                </Link>
+                                <p className="text-sm text-slate-600 mt-1">{p.listing_type}</p>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Link 
+                                  href={`/properties/${p.id}`}
+                                  className="inline-flex items-center px-2 py-1 border border-slate-300 rounded text-slate-700 bg-white hover:bg-slate-50 transition-colors text-xs"
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  Detay
+                                </Link>
+                                <form action={`/api/properties/${p.id}`} method="post" className="inline">
+                                  <input type="hidden" name="_method" value="delete" />
+                                  <button 
+                                    type="submit"
+                                    className="inline-flex items-center px-2 py-1 border border-red-300 rounded text-red-700 bg-white hover:bg-red-50 transition-colors text-xs"
+                                  >
+                                    <Trash2 className="h-3 w-3 mr-1" />
+                                    Sil
+                                  </button>
+                                </form>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Konum:</span>
+                                <span className="text-slate-900">{p.city} / {p.district} / {p.neighborhood || "Tümü"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Oda:</span>
+                                <span className="text-slate-900">{p.room_plan || "-"}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">m²:</span>
+                                <span className="text-slate-900">{p.gross_m2}{p.net_m2 ? ` / ${p.net_m2}` : ""}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-500">Fiyat:</span>
+                                <span className="text-slate-900 font-medium">{new Intl.NumberFormat("tr-TR").format(p.price)} ₺</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="mt-1 text-xs text-gray-600">{p.city} / {p.district}</div>
-                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                      <div><span className="text-gray-500">Brüt/Net:</span> <span className="text-gray-900">{p.gross_m2}{p.net_m2 ? ` / ${p.net_m2}` : ""}</span></div>
-                      <div><span className="text-gray-500">Oda Sayısı:</span> <span className="text-gray-900">{p.room_plan ?? "-"}</span></div>
-                      <div><span className="text-gray-500">Kat:</span> <span className="text-gray-900">{p.building_floors ?? "-"}</span></div>
-                      <div><span className="text-gray-500">Bina Yaşı:</span> <span className="text-gray-900">{p.building_age ?? "-"}</span></div>
-                      <div><span className="text-gray-500">Isıtma:</span> <span className="text-gray-900">{p.heating ?? "-"}</span></div>
-                      <div><span className="text-gray-500">Fiyat:</span> <span className="text-gray-900">{new Intl.NumberFormat("tr-TR").format(p.price)} ₺</span></div>
-                    </div>
-                  </div>
-                ))}
+                  </>
+                )}
               </div>
-              </>
-            )}
-            <Pagination
-              currentPage={page}
-              totalPages={Math.ceil(total / pageSize)}
-              baseUrl="/properties"
-              searchParams={sp}
-            />
-          </div>
-        </section>
-      </div>
+
+              {/* Pagination */}
+              {properties.length > 0 && (
+                <div className="px-6 py-4 border-t border-slate-200">
+                  <Pagination
+                    currentPage={page}
+                    totalPages={Math.ceil(total / pageSize)}
+                    baseUrl="/properties"
+                    searchParams={sp}
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="mt-16 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <p className="text-center text-sm text-slate-500">
+            © {new Date().getFullYear()} Emlak CRM · Assets Page
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
-
-

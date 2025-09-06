@@ -44,6 +44,7 @@ const neighborhoods = searchParams
   const inSite = searchParams.get("in_site");
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
   const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize") ?? "25")));
+  const sort = searchParams.get("sort");
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
   let query = supabaseAdmin.from("properties").select("id, type, listing_type, city, district, neighborhood, price, gross_m2, net_m2, room_plan", { count: "exact" });
@@ -117,9 +118,17 @@ if (neighborhoods.length > 0) {
   setBool("furnished", furnished);
   setBool("balcony", balcony);
   setBool("in_site", inSite);
-  const { data, error, count } = await query
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  
+  // Apply sorting
+  if (sort === "price_asc") {
+    query = query.order("price", { ascending: true });
+  } else if (sort === "price_desc") {
+    query = query.order("price", { ascending: false });
+  } else {
+    query = query.order("created_at", { ascending: false });
+  }
+  
+  const { data, error, count } = await query.range(from, to);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

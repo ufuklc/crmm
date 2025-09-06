@@ -52,7 +52,9 @@ export function SearchableSelect({
 
   // Value prop'u değiştiğinde selected state'ini güncelle
   useEffect(() => {
-    setSelected(value || null);
+    if (value) {
+      setSelected(value);
+    }
   }, [value]);
 
   function selectItem(item: Item): void {

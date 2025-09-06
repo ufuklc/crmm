@@ -48,10 +48,10 @@ export const PropertyFiltersBar = forwardRef<
   useEffect(() => {
     const fetchPortfolioOwners = async () => {
       try {
-        const response = await fetch('/api/portfolio-owners');
+        const response = await fetch('/api/lookup/portfolio-owners');
         if (response.ok) {
           const data = await response.json();
-          setPortfolioOwnerOptions(data.portfolioOwners || []);
+          setPortfolioOwnerOptions(data.items || []);
         }
       } catch (error) {
         console.error('Portfolio owner yükleme hatası:', error);

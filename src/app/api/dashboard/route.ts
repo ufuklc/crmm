@@ -1,7 +1,28 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request): Promise<Response> {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options: any) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  );
   const url = new URL(req.url);
   const page = Math.max(1, Number(url.searchParams.get("activityPage") ?? "1"));
   const pageSize = Math.min(10, Math.max(1, Number(url.searchParams.get("activityPageSize") ?? "10")));
@@ -17,17 +38,17 @@ export async function GET(req: Request): Promise<Response> {
   end.setHours(23, 59, 59, 999);
 
   const [propCount, activeCustomers, activeRequests, todayNotes, todayProps] = await Promise.all([
-    supabaseAdmin.from("properties").select("id", { count: "exact", head: true }),
-    supabaseAdmin.from("customers").select("id", { count: "exact", head: true }),
-    supabaseAdmin.from("customer_requests").select("id", { count: "exact", head: true }).eq("fulfilled", false),
-    supabaseAdmin
+    supabase.from("properties").select("id", { count: "exact", head: true }),
+    supabase.from("customers").select("id", { count: "exact", head: true }),
+    supabase.from("customer_requests").select("id", { count: "exact", head: true }).eq("fulfilled", false),
+    supabase
       .from("meeting_notes")
       .select("id, customer_id, created_at, customer:customers(id, first_name, last_name)", { count: "exact" })
       .gte("created_at", start.toISOString())
       .lte("created_at", end.toISOString())
       .order("created_at", { ascending: false })
       .range(from, to),
-    supabaseAdmin
+    supabase
       .from("properties")
       .select("id, type, created_at, portfolio_owner:portfolio_owners(id, first_name, last_name)", { count: "exact" })
       .gte("created_at", start.toISOString())
@@ -56,7 +77,7 @@ export async function GET(req: Request): Promise<Response> {
 
   // Bildirimler: Son 7 günde istek girilmiş ve hiç görüşme notu eklenmemiş müşteriler
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-  const recentReq = await supabaseAdmin
+  const recentReq = await supabase
     .from("customer_requests")
     .select("id, customer_id, created_at, customer:customers(id, first_name, last_name)")
     .lte("created_at", sevenDaysAgo)
@@ -78,7 +99,7 @@ export async function GET(req: Request): Promise<Response> {
   let notesByCustomer = new Map<string, Array<string>>();
   if (customerIds.length > 0) {
     const minReqAt = reqs.reduce((min, r) => (r.created_at < min ? r.created_at : min), reqs[0]?.created_at ?? sevenDaysAgo);
-    const notes = await supabaseAdmin
+    const notes = await supabase
       .from("meeting_notes")
       .select("customer_id, created_at")
       .in("customer_id", customerIds)

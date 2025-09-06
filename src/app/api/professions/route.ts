@@ -7,7 +7,7 @@ export async function GET(): Promise<Response> {
     .select("id, name")
     .order("name", { ascending: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ professions: data });
+  return NextResponse.json({ items: data });
 }
 
 export async function POST(req: Request): Promise<Response> {

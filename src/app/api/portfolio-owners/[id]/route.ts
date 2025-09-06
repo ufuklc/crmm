@@ -1,63 +1,54 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-type RouteParams = { params: Promise<{ id: string }> };
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
 
-export async function GET(_req: Request, ctx: RouteParams): Promise<Response> {
-  const { id } = await ctx.params;
-  const { data, error } = await supabaseAdmin
-    .from("portfolio_owners")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
-  return NextResponse.json({ portfolioOwner: data });
-}
+    if (!id) {
+      return NextResponse.json(
+        { error: "Portföy sahibi ID'si gerekli" },
+        { status: 400 }
+      );
+    }
 
-export async function PATCH(req: Request, ctx: RouteParams): Promise<Response> {
-  const body = await req.json();
-  const { id } = await ctx.params;
-  const { data, error } = await supabaseAdmin
-    .from("portfolio_owners")
-    .update(body)
-    .eq("id", id)
-    .select("id")
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ id: data.id });
-}
+    // Check if portfolio owner exists
+    const { data: existingOwner, error: fetchError } = await supabaseAdmin
+      .from("portfolio_owners")
+      .select("id")
+      .eq("id", id)
+      .single();
 
-export async function DELETE(_req: Request, ctx: RouteParams): Promise<Response> {
-  const { id } = await ctx.params;
-  const { error } = await supabaseAdmin.from("portfolio_owners").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ ok: true });
-}
+    if (fetchError || !existingOwner) {
+      return NextResponse.json(
+        { error: "Portföy sahibi bulunamadı" },
+        { status: 404 }
+      );
+    }
 
-// Method override: HTML form POST + _method=put/delete
-export async function POST(req: Request, ctx: RouteParams): Promise<Response> {
-  const { id } = await ctx.params;
-  const contentType = req.headers.get("content-type") ?? "";
-  if (contentType.includes("application/json")) {
-    return NextResponse.json({ error: "Use PATCH or DELETE" }, { status: 405 });
+    // Delete portfolio owner
+    const { error: deleteError } = await supabaseAdmin
+      .from("portfolio_owners")
+      .delete()
+      .eq("id", id);
+
+    if (deleteError) {
+      console.error("Portföy sahibi silme hatası:", deleteError);
+      return NextResponse.json(
+        { error: "Portföy sahibi silinirken hata oluştu" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Portföy sahibi silme hatası:", error);
+    return NextResponse.json(
+      { error: "Sunucu hatası" },
+      { status: 500 }
+    );
   }
-  const form = await req.formData();
-  const method = String(form.get("_method") ?? "").toLowerCase();
-  if (method === "delete") {
-    const { error } = await supabaseAdmin.from("portfolio_owners").delete().eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    const url = new URL(`/portfolio-owners`, req.url);
-    return NextResponse.redirect(url, 303);
-  }
-  if (method === "put") {
-    const body: Record<string, unknown> = {};
-    for (const [k, v] of form.entries()) if (k !== "_method") body[k] = v;
-    const { error } = await supabaseAdmin.from("portfolio_owners").update(body).eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    const url = new URL(`/portfolio-owners`, req.url);
-    return NextResponse.redirect(url, 303);
-  }
-  return NextResponse.json({ error: "Unsupported" }, { status: 400 });
 }
-
-
