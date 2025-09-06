@@ -62,7 +62,7 @@ export default function RequestEditPage({ params }: { params: Promise<{ id: stri
               const cityRes = await fetch('/api/locations/cities');
               if (cityRes.ok) {
                 const cityData = await cityRes.json();
-                const city = cityData.items?.find((c: any) => c.name === req.city);
+                const city = cityData.items?.find((c: { id: string; name: string }) => c.name === req.city);
                 if (city) {
                   setSelectedCity({ id: city.id, name: city.name });
                   
@@ -71,7 +71,7 @@ export default function RequestEditPage({ params }: { params: Promise<{ id: stri
                     const districtRes = await fetch(`/api/locations/districts?cityId=${city.id}`);
                     if (districtRes.ok) {
                       const districtData = await districtRes.json();
-                      const district = districtData.items?.find((d: any) => d.name === req.district);
+                      const district = districtData.items?.find((d: { id: string; name: string }) => d.name === req.district);
                       if (district) {
                         setSelectedDistrict({ id: district.id, name: district.name });
                       }
@@ -106,7 +106,7 @@ export default function RequestEditPage({ params }: { params: Promise<{ id: stri
           const response = await fetch(`/api/locations/neighborhoods?districtId=${selectedDistrict.id}`);
           if (response.ok) {
             const data = await response.json();
-            setNeighborhoodOptions(data.items?.map((n: any) => n.name) || []);
+            setNeighborhoodOptions(data.items?.map((n: { id: string; name: string }) => n.name) || []);
           }
         } catch (error) {
           console.error('Mahalle yükleme hatası:', error);
